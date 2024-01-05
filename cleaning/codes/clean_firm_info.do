@@ -7,7 +7,7 @@
 * Input:
 *                   $ecuRaw/characteristics/characteristicsOld.dta
 * Output:
-*                   $pathEst/input/firm_info.csv
+*                   $pathCle/output/firm_info.csv
 ////////////////////////////////////////////////////////////////////////////////
 quietly do "~/data/transactions_ecuador/3_mivazq/Masters_Thesis/setup.do"
 ////////////////////////////////////////////////////////////////////////////////
@@ -120,4 +120,5 @@ drop class active keeps_books mandatory artisan_type status BooksStartDate Speci
 order id_sri startdate soe province region_tax region_geo isic_section isic_division isic_group isic_class
 sort id_sri
 compress
-export delimited $pathEst/input/firm_info.csv, replace // Import with encoding(UTF8)!
+export delimited $pathCle/output/firm_info.csv, replace // Import with encoding(UTF8)!
+

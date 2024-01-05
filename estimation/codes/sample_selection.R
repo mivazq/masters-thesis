@@ -4,11 +4,11 @@
 # Creation date:    20 November 2023
 # Description:      This file selects the sample of firms for the analysis.
 # Input:            
-#                   $pathEst/input/firm_info.csv
-#                   $pathEst/input/tax_filings.csv
-#                   $pathEst/input/entities.csv
+#                   $pathCle/output/firm_info.csv
+#                   $pathCle/output/tax_filings.csv
+#                   $pathCle/output/entities.csv
 # Output:           
-#                   -
+#                   $pathEst/firm_sample.Rdata
 #///////////////////////////////////////////////////////////////////////////////
 source('~/data/transactions_ecuador/3_mivazq/Masters_Thesis/setup.R')
 #///////////////////////////////////////////////////////////////////////////////
@@ -16,12 +16,14 @@ source('~/data/transactions_ecuador/3_mivazq/Masters_Thesis/setup.R')
 #///////////////////////////////////////////////////////////////////////////////
 
 # Load data about tax filings and firm information
-df_tax_filings <- fread(file=paste0(pathEst, "input/tax_filings.csv"), na.strings="")
-df_firm_info   <- fread(file=paste0(pathEst, "input/firm_info.csv"), na.strings="")
-df_entities    <- fread(file=paste0(pathEst, "input/entities.csv"), na.strings="")
+df_tax_filings <- fread(file=paste0(pathCle, "output/tax_filings.csv"), na.strings="")
+df_firm_info   <- fread(file=paste0(pathCle, "output/firm_info.csv"), na.strings="")
+df_entities    <- fread(file=paste0(pathCle, "output/entities.csv"), na.strings="")
 
 # Only keeping 2008-2011 years for now
-df_tax_filings <- df_tax_filings[year %in% c(2008,2009,2010,2011)]
+if (!all.equal(unique(df_tax_filings$year), c(2008,2009,2010,2011))) {
+    stop("There other years outside 2008-2011 range")
+}
 
 # Merge data sources
 firm_sample <- unique(df_tax_filings[, .(id_sri, form)])
@@ -63,12 +65,6 @@ round(table(firm_sample$isic_section)/nrow(firm_sample)*100,2)
 
 # Exclude SOE firms
 # ...
-
-# Store final sample of firms
-setorder(firm_sample, id_sri)
-setorder(firm_sample_drop, id_sri)
-save(firm_sample, file = paste0(pathEst, "input/firm_sample.Rdata"))
-save(firm_sample_drop, file = paste0(pathEst, "input/firm_sample_drop.Rdata"))
 
 #///////////////////////////////////////////////////////////////////////////////
 #----       2 - IMPORT ENTRY AND EXIT YEARS FROM OTHER SOURCES, COMBINE     ----
@@ -163,134 +159,46 @@ rm(filing_IDs_F101,filing_IDs_F102,filing_IDs_SS,replaceIDs)
 df_firm_info[, startdate := as.Date(as.POSIXct(startdate, format = "%d%b%Y"))]
 df_firm_info[, startyear := year(startdate)]
 
-# We take firm registry information as first input and adapt in contradicting cases
+# For entry, take firm registry as first input and adapt in contradicting cases
 firm_sample <- merge(firm_sample, df_firm_info[,.(id_sri,startyear)], by="id_sri", all.x = T)
 firm_sample <- merge(firm_sample, external[,.(id_sri,first_filing,last_filing)], by="id_sri", all.x = T)
 colSums(is.na(firm_sample)) # check that there are no missing values
 warning("There are ",nrow(firm_sample[first_filing<startyear])," firms in our sample where their 'first filing' < 'start date' in the firm registry")
-firm_sample[, entryyear := startyear]
-firm_sample[first_filing<startyear, entryyear := first_filing]
+firm_sample[, entry_year := startyear]
+firm_sample[first_filing<startyear, entry_year := first_filing]
+if (sum(is.na(firm_sample$entrydate))!=0) {
+    stop("There are firms with missing entry year")
+}
+firm_sample[, c("startyear","first_filing") := NULL]
 
-
-
-
-# Generate entry dates
-    # For firms found in registry take their "start date"
-    panel[, entrydate := year(startdate)]
-
-    # Adjust when entry date later than first filing of F101 form
-    panel[, first_filing := min(year), by=id_sri]
-    cat("There are", nrow(panel[entrydate>first_filing]), "such cases\n")
-    panel[entrydate>first_filing, entrydate := first_filing]
-    
-    # Adjust when entry date later than first filing of social security data
-    entry_emp <- copy(df_wage_bills)
-    entry_emp[, entrydate := min(year), by=id_sri]
-    entry_emp <- unique(entry_emp[,.(id_sri, entry_emp=entrydate)])
-    panel <- merge.data.table(panel, entry_emp, by="id_sri", all.x=T)
-    cat("There are further", nrow(panel[entrydate>entry_emp]), "such cases\n")
-    panel[entrydate>entry_emp, entrydate := entry_emp]
-    
-    # Generate entry date for firms not found in registry
-    panel[, imputed := is.na(startdate)] # create var to label imputed entries
-    cat("There are", nrow(panel[imputed==T]), "such cases\n")
-    panel[imputed==T, entrydate := first_filing] # based on tax filing
-    panel[entrydate>entry_emp, entrydate := entry_emp] # adjust with employment data
-
-    # Finally, simply cut off entry dates to 2007 (1 year before our 2008-2015 period)
-    panel[entrydate<2007, entrydate := 2007]
-    panel[, startdate := NULL] # drop start date var
-    cat("Assert every firm has an entry date, must print TRUE:\n",
-        sum(is.na(panel$entrydate))==0,"\n")
-    rm(entry_emp)
-    
-# Generate exit dates
-    # Based on last date they fill a form
-    panel[, exitdate := max(year), by=id_sri]
-    
-    # Adjust when exit date later than last filing of F101 form
-    # Note: it might make sense that firms appear in social security but don't
-    # file a tax form if, e.g., they go bankrupt mid-year
-    exit_emp <- copy(df_wage_bills)
-    exit_emp[, exitdate := max(year), by=id_sri]
-    exit_emp <- unique(exit_emp[,.(id_sri, exit_emp=exitdate)])
-    panel <- merge.data.table(panel, exit_emp, by="id_sri", all.x=T)
-    cat("There are", nrow(panel[exitdate<exit_emp]), "such cases\n")
-    panel[exitdate<exit_emp, exitdate := exit_emp]
-    
-    # Finally, simply cut off entry dates to 2016 (1 year after our 2008-2015 period)
-    panel[exitdate>=2016, exitdate := 2016] # no exit if last form in 2017
-    cat("Assert every firm has an exit date, must print TRUE:\n",
-        sum(is.na(panel$exitdate))==0,"\n")
-    rm(exit_emp)
-    
-# Create plot to show effect of imputation of missing entry year
-df_plot <- panel[, .(id_sri, imputed, entrydate, count=1)]
-df_plot <- unique(df_plot) # keep only unique entries, don't double count firms
-cat("Assert we have one observation for firm, must print TRUE:\n",
-    nrow(df_plot)==length(firm_ids),"\n")
-df_plot <- aggregate(df_plot[entrydate %in% seq(2008,2015,1)], count ~ entrydate + imputed, FUN=length)
-plot <- ggplot(df_plot, aes(x=entrydate,y=count)) + 
-    geom_col(aes(fill=imputed), position='stack') +
-    scale_x_continuous(breaks = 2008:2015, 
-                       labels = as.character(2008:2015)) +
-    scale_y_continuous(limits = c(0, 10000)) +
-    xlab("Year") + ylab("Entries") + 
-    ggtitle("Entry of companies") + 
-    theme_bw() + theme(axis.title.y = element_text(angle=0, vjust=0.5))
-ggsave(plot, filename = paste0(pathFig,sysdate,'_entry_date.png'),width = 12, height = 7)
-rm(df_plot, plot)
-
-# Create plot to see exits
-df_plot <- panel[, .(id_sri, exitdate, count=1)]
-df_plot <- unique(df_plot) # keep only unique entries, don't double count firms
-cat("Assert we have one observation for firm, must print TRUE:\n",
-    nrow(df_plot)==length(firm_ids),"\n")
-df_plot <- aggregate(df_plot[exitdate %in% seq(2008,2015,1)], count ~ exitdate, FUN=length)
-plot <- ggplot(df_plot, aes(x=exitdate,y=count)) + 
-    geom_col() +
-    scale_x_continuous(breaks = 2008:2015, 
-                       labels = as.character(2008:2015)) +
-    scale_y_continuous(limits = c(0, 10000)) +
-    xlab("Year") + ylab("Exits") + 
-    ggtitle("Exits of companies") + 
-    theme_bw() + theme(axis.title.y = element_text(angle=0, vjust=0.5))
-ggsave(plot, filename = paste0(pathFig,sysdate,'_exit_date.png'),width = 12, height = 7)
-rm(df_plot, plot)
-
-# Check how many cases we have of firms not filing even though still in market
-panel[is.na(exitdate), exitdate := 2015] # no exit if last form in 2015
-panel[, filing_years_due := exitdate-ifelse(entrydate>=2008, entrydate, 2008)+1]
-
-
+# For exit, we don't see anything in firm registry: take last filing date
+firm_sample[, exit_year := last_filing]
+if (sum(is.na(firm_sample$exit_year))!=0) {
+    stop("There are firms with missing exit year")
+}
+firm_sample[, last_filing := NULL]
 
 #///////////////////////////////////////////////////////////////////////////////
+#----                   4 - PANELISE AND STORE FINAL SAMPLE                 ----
+#///////////////////////////////////////////////////////////////////////////////
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# Store final sample of firms
+setorder(firm_sample, id_sri)
+setorder(firm_sample_drop, id_sri)
+save(firm_sample, file = paste0(pathEst, "input/firm_sample.Rdata"))
+save(firm_sample_drop, file = paste0(pathEst, "input/firm_sample_drop.Rdata"))
 
 # Create full panel
 panel <- data.table()
 for (yyyy in c(2008, 2009, 2010, 2011)) {
     panel <- rbind(panel, firm_sample[, year := yyyy])
 }
-cat("Assert correct number of observations, must print TRUE:\n",
-    nrow(panel)==nrow(firm_sample)*4,"\n")
+if (nrow(panel)!=nrow(firm_sample)*4) {
+    stop("Wrong number of observations in panel")
+}
+
+# Reorganise variables and save panel
+panel <- panel[, .(year, id_sri, entity, soe, isic_section, entry_year, exit_year)]
+setorder(panel, "id_sri","year")
+save(panel, file = paste0(pathEst, "input/panel.Rdata"))
+

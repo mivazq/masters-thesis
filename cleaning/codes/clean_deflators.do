@@ -23,7 +23,7 @@
 *                   $ecuRaw/prices/DECON_03_IPPDN_Serie_historica_CIIU_2023_11.xlsx
 *                   $ecuRaw/nomenclatures/crosswalk_4_3.1.txt
 * Output:
-*                   $pathEst/input/isic_codes.csv
+*                   $pathCle/output/isic_codes.csv
 ////////////////////////////////////////////////////////////////////////////////
 quietly do "~/data/transactions_ecuador/3_mivazq/Masters_Thesis/setup.do"
 ////////////////////////////////////////////////////////////////////////////////
@@ -98,7 +98,12 @@ rename rev31 code
 reshape long adj_year_, i(code) j(year)
 drop n
 rename adj_year_ deflator
-export delimited $pathEst/input/deflators.csv, replace
+export delimited $pathCle/output/deflators.csv, replace
+
+
+
+
+
 
 
 
@@ -154,5 +159,5 @@ gen n = 1
 reshape long year_, i(n) j(year)
 drop n
 rename year_ deflator
-export delimited $pathEst/input/deflators.csv
+export delimited $pathCle/output/deflators.csv
 */

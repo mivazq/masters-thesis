@@ -4,13 +4,19 @@
 # Creation date:    20 November 2023
 # Description:      This file estimates markups for all firms, year to year.
 # Input:            
-#                   $pathEst/input/firm_info.csv
-#                   $pathEst/input/tax_filings.csv
-#                   $pathEst/input/purchase_annexes.csv
-#                   $pathEst/input/isic_codes_section.csv
-#                   $pathEst/input/isic_codes_division.csv
-#                   $pathEst/input/isic_codes_group.csv
-#                   $pathEst/input/isic_codes_class.csv
+#                   $pathEst/input/panel.Rdata
+#                   $pathCle/output/firm_info.csv
+#                   $pathCle/output/tax_filings.csv
+#                   $pathCle/output/wage_bills.csv
+#                   $pathCle/output/exports.csv
+#                   $pathCle/output/imports.csv
+#                   $pathCle/output/cost_intermediate.csv
+#                   $pathCle/output/revenue_intermediate.csv
+#                   $pathCle/output/deflators.csv
+#                   $pathCle/output/isic_codes_section.csv
+#                   $pathCle/output/isic_codes_division.csv
+#                   $pathCle/output/isic_codes_group.csv
+#                   $pathCle/output/isic_codes_class.csv
 # Output:           
 #                   -
 #///////////////////////////////////////////////////////////////////////////////
@@ -19,23 +25,29 @@ source('~/data/transactions_ecuador/3_mivazq/Masters_Thesis/setup.R')
 #----               1 - LOAD DATA AND MERGE WITH SAMPLE OF FIRMS            ----
 #///////////////////////////////////////////////////////////////////////////////
 
-# Load sample of firms
-load(paste0(pathEst, "input/firm_sample.Rdata")) # load sample of firm IDs we are interested in
+# Load panel of firms in our sample
+load(paste0(pathEst, "input/panel.Rdata"))
 
 # Load data about tax filings and firm information
-df_tax_filings <- fread(file=paste0(pathEst, "input/tax_filings.csv"), na.strings="")
-df_firm_info   <- fread(file=paste0(pathEst, "input/firm_info.csv"), na.strings="")
-df_wage_bills  <- fread(file=paste0(pathEst, "input/wage_bills.csv"), na.strings="")
-df_exports <- fread(file=paste0(pathEst, "input/exports.csv"), na.strings="")
-df_imports <- fread(file=paste0(pathEst, "input/imports.csv"), na.strings="")
+df_firm_info   <- fread(file=paste0(pathCle, "output/firm_info.csv"), na.strings="")
+df_tax_filings <- fread(file=paste0(pathCle, "output/tax_filings.csv"), na.strings="")
+df_wage_bills  <- fread(file=paste0(pathCle, "output/wage_bills.csv"), na.strings="")
+df_exports     <- fread(file=paste0(pathCle, "output/exports.csv"), na.strings="")
+df_imports     <- fread(file=paste0(pathCle, "output/imports.csv"), na.strings="")
+df_interm_c    <- fread(file=paste0(pathCle, "output/intermediate_cost.csv"), na.strings="")
+df_interm_r    <- fread(file=paste0(pathCle, "output/intermediate_revenue.csv"), na.strings="")
+df_deflators   <- fread(file=paste0(pathCle, "output/deflators.csv"), na.strings="")
+df_isic_sec    <- fread(file=paste0(pathCle, "output/isic_codes_section.csv"), na.strings="")
+df_isic_div    <- fread(file=paste0(pathCle, "output/isic_codes_division.csv"), na.strings="")
+df_isic_gro    <- fread(file=paste0(pathCle, "output/isic_codes_group.csv"), na.strings="")
+df_isic_cla    <- fread(file=paste0(pathCle, "output/isic_codes_class.csv"), na.strings="")
 
-# Convert string date to format date
-df_firm_info[, startdate := as.Date(as.POSIXct(startdate, format = "%d%b%Y"))]
-df_firm_info[, startyear := year(startdate)]
+
+
+
 
 # Merge time-less data sources from firm registry
 firm_sample <- merge.data.table(firm_sample, df_firm_info[,.(id_sri, startyear)], by="id_sri", all.x=T)
-
 
 # Merge yearly data sources
 panel <- merge.data.table(panel, df_tax_filings, by=c("year", "id_sri"), all.x=T)
@@ -44,29 +56,9 @@ panel <- merge.data.table(panel, df_exports,     by=c("year", "id_sri"), all.x=T
 panel <- merge.data.table(panel, df_imports,     by=c("year", "id_sri"), all.x=T)
 setorder(panel, cols ="year","id_sri")
 
-
-# Load purchase annexes
-df_cost_intermediate <- fread(file=paste0(pathEst, "input/cost_intermediate.csv"),
-                              na.strings="")
-df_revenue_intermediate <- fread(file=paste0(pathEst, "input/revenue_intermediate.csv"),
-                                 na.strings="")
-
 # Merge intermediate costs and revenues to the panel
 panel <- merge.data.table(panel, df_cost_intermediate, by=c("id_sri","year"), all.x=T)
 panel <- merge.data.table(panel, df_revenue_intermediate, by=c("id_sri","year"), all.x=T)
-
-
-
-
-
-
-df_deflators <- fread(file=paste0(pathEst, "input/deflators.csv"), na.strings="")
-
-
-
-
-
-
 
 #### ACCOUNTING
 
@@ -88,22 +80,3 @@ df_deflators <- fread(file=paste0(pathEst, "input/deflators.csv"), na.strings=""
 # Example: 0 investment, 0 disinvestment and 30 depreciation. Net investment = 170 - 200 + 30 =   0 (correct!)
 
 # Generate investment as: net investment + disinvestment (both calculated above)
-
-
-
-
-
-
-#///////////////////////////////////////////////////////////////////////////////
-#----                       2 - SECTION 2                      ----
-#///////////////////////////////////////////////////////////////////////////////
-
-df_isic_sections    <- fread(file=paste0(pathEst, "input/isic_codes_section.csv"),
-                             na.strings="")
-df_isic_divisions   <- fread(file=paste0(pathEst, "input/isic_codes_division.csv"),
-                             na.strings="")
-df_isic_groups      <- fread(file=paste0(pathEst, "input/isic_codes_group.csv"),
-                             na.strings="")
-df_isic_classes     <- fread(file=paste0(pathEst, "input/isic_codes_class.csv"),
-                             na.strings="")
-

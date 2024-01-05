@@ -7,16 +7,16 @@
 *                   $ecuRaw/employment/IESS_`year'_ids
 *                   $ecuRaw/employment/employer_employee_`year'
 * Output:
-*                   $pathEst/input/wage_bills.csv
+*                   $pathCle/output/wage_bills.csv
 ////////////////////////////////////////////////////////////////////////////////
 quietly do "~/data/transactions_ecuador/3_mivazq/Masters_Thesis/setup.do"
 ////////////////////////////////////////////////////////////////////////////////
 
 * Create folder to store intermediate cleaned files
-cap mkdir "$pathEst/input/cleaning_intermediate/SS/"
+cap mkdir "$pathCle/input/cleaning_intermediate/SS/"
 
 * 1a) Load and clean IESS data
-save $pathEst/input/cleaning_intermediate/SS/IESS.dta, replace emptyok // create empty file
+save $pathCle/input/cleaning_intermediate/SS/IESS.dta, replace emptyok // create empty file
 foreach year in 07 08 09 10 11 12 13 14 15 16 17 {
     
     di "Now processing year 20`year' of IESS data"
@@ -58,13 +58,13 @@ foreach year in 07 08 09 10 11 12 13 14 15 16 17 {
 
 	* Append and save
 	compress
-	append using $pathEst/input/cleaning_intermediate/SS/IESS.dta
-	save $pathEst/input/cleaning_intermediate/SS/IESS.dta, replace
+	append using $pathCle/input/cleaning_intermediate/SS/IESS.dta
+	save $pathCle/input/cleaning_intermediate/SS/IESS.dta, replace
 }
 
 
 * 1b) Load and clean F107 data
-save $pathEst/input/cleaning_intermediate/SS/F107.dta, replace emptyok // create empty file
+save $pathCle/input/cleaning_intermediate/SS/F107.dta, replace emptyok // create empty file
 foreach year in 09 10 11 12 13 14 15 16 {
     
     di "Now processing year 20`year' of F107 data"
@@ -168,15 +168,15 @@ foreach year in 09 10 11 12 13 14 15 16 {
     
 	* Append and save
 	compress
-	append using $pathEst/input/cleaning_intermediate/SS/F107.dta
-    save $pathEst/input/cleaning_intermediate/SS/F107.dta, replace
+	append using $pathCle/input/cleaning_intermediate/SS/F107.dta
+    save $pathCle/input/cleaning_intermediate/SS/F107.dta, replace
 }
 
 
 * 1.c) Merge the two data sources
     * Merge on year-employer-employee
-    use $pathEst/input/cleaning_intermediate/SS/IESS.dta, clear
-    merge 1:1 year id_employer id_employee using $pathEst/input/cleaning_intermediate/SS/F107.dta, gen(source)
+    use $pathCle/input/cleaning_intermediate/SS/IESS.dta, clear
+    merge 1:1 year id_employer id_employee using $pathCle/input/cleaning_intermediate/SS/F107.dta, gen(source)
     
     * Look at match only for overlapping years
     tab source if year>=2009 & year<=2016
@@ -299,15 +299,15 @@ foreach year in 09 10 11 12 13 14 15 16 {
     isid year id_employer id_employee
     
     * Collapse at employer year level
-    gcollapse (sum) cost_labour = final_wage, by(year id_employer)
+    gcollapse (sum) wages = final_wage, by(year id_employer)
     rename id_employer id_sri
     
     * Round and save
-    replace cost_labour = round(cost_labour)
+    replace wages = round(wages)
     compress
-    export delimited $pathEst/input/wage_bills.csv, replace
+    export delimited $pathCle/output/wage_bills.csv, replace
 
 //     * Delete folder of intermediate files and its contents
-//     rm "$pathEst/input/cleaning_intermediate/SS/IESS.dta"
-//     rm "$pathEst/input/cleaning_intermediate/SS/F107.dta"
-//     rmdir "$pathEst/input/cleaning_intermediate/SS/"
+//     rm "$pathCle/input/cleaning_intermediate/SS/IESS.dta"
+//     rm "$pathCle/input/cleaning_intermediate/SS/F107.dta"
+//     rmdir "$pathCle/input/cleaning_intermediate/SS/"

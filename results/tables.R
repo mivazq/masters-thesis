@@ -1,44 +1,44 @@
 #///////////////////////////////////////////////////////////////////////////////
-# File name:		sample_selection.R
+# File name:		tables.R
 # Author:			Miguel Vázquez Vázquez
 # Creation date:    03 January 2024
 # Description:      In this file we produce all tables of the paper's appendix
 #
 # Input:
-#                   $pathEst/input/firm_ids.Rdata
+#                   $pathEst/input/firm_sample.Rdata
+#                   $pathEst/input/firm_sample_drop.Rdata
 #                   $pathEst/input/isic_codes_section.csv
 # Output:
-#                   -
+#                   $pathTab/$sysdate_sector_distribution.tex
 #                   -
 #///////////////////////////////////////////////////////////////////////////////
 source('~/data/transactions_ecuador/3_mivazq/Masters_Thesis/setup.R')
 #///////////////////////////////////////////////////////////////////////////////
-#----                       1 - LOAD DATA                                   ----
+#----                               LOAD DATA                               ----
 #///////////////////////////////////////////////////////////////////////////////
 
-# Table Sector distribution
+# Sector Distribution
 sections <- fread(paste0(pathEst, "input/isic_codes_section.csv"))
 sections <- sections[isic_section %nin% c("P", "Q", "R", "S", "T")]
 load(file = paste0(pathEst, "input/firm_sample.Rdata"))
 load(file = paste0(pathEst, "input/firm_sample_drop.Rdata"))
+
+#///////////////////////////////////////////////////////////////////////////////
+#### Table 1: Sector Distribution                               # Section ? ####
+#///////////////////////////////////////////////////////////////////////////////
+
+df_table <- sections
 C1 <- as.data.table(table(firm_sample$isic_section))
 C2 <- as.data.table(table(firm_sample$isic_section)/nrow(firm_sample))
 C3 <- as.data.table(table(firm_sample[soe==1]$isic_section))
 C4 <- as.data.table(table(firm_sample[entity=="Company"]$isic_section)/table(firm_sample$isic_section))
 C5 <- as.data.table(table(firm_sample[entity=="Sole proprietorship"]$isic_section)/table(firm_sample$isic_section))
-sections <- merge(sections, C1[,.(isic_section=V1, C1=N)], by="isic_section")
-sections <- merge(sections, C2[,.(isic_section=V1, C2=N)], by="isic_section")
-sections <- merge(sections, C3[,.(isic_section=V1, C3=N)], by="isic_section")
-sections <- merge(sections, C4[,.(isic_section=V1, C4=N)], by="isic_section")
-sections <- merge(sections, C5[,.(isic_section=V1, C5=N)], by="isic_section")
-setnames(sections, c("isic_section", "isic_section_desc"), c("sec","desc"))
-
-#///////////////////////////////////////////////////////////////////////////////
-#### Table B.1: Summary Statistics, Transactions Data							 # Appendix B.1.1 ####
-#///////////////////////////////////////////////////////////////////////////////
-
-#### NOTE!!!! THE NUMBERS IN THE FOOTNOTE ARE MANUALLY WRITTEN BY ME, SHOULD BE
-# AUTOMATICALLY RETRIEVED JUST IN CASE
+df_table <- merge(df_table, C1[,.(isic_section=V1, C1=N)], by="isic_section")
+df_table <- merge(df_table, C2[,.(isic_section=V1, C2=N)], by="isic_section")
+df_table <- merge(df_table, C3[,.(isic_section=V1, C3=N)], by="isic_section")
+df_table <- merge(df_table, C4[,.(isic_section=V1, C4=N)], by="isic_section")
+df_table <- merge(df_table, C5[,.(isic_section=V1, C5=N)], by="isic_section")
+setnames(df_table, c("isic_section", "isic_section_desc"), c("sec","desc"))
 
 sink(paste0(pathTab,sysdate,"_sector_distribution.tex"))
 cat("\\documentclass{article} \n")
@@ -58,9 +58,9 @@ cat("            & \\multicolumn{1}{c}{ISIC} & \\multicolumn{1}{c}{Number} & \\m
 cat("\\addlinespace \\cline{6-7} \\addlinespace \n")
 cat("Description & \\multicolumn{1}{c}{Section} & \\multicolumn{1}{c}{of firms} & \\multicolumn{1}{c}{of total} & \\multicolumn{1}{c}{Enterprises} & \\multicolumn{1}{c}{Companies} & \\multicolumn{1}{c}{Sole-proprietorships} \\\\ \n")
 cat("\\addlinespace \\hline \\addlinespace \n")
-for (sect in sort(sections$sec)){
-    cat(sections[sec==sect]$desc, " & ", sections[sec==sect]$sec, " & ", fp(sections[sec==sect]$C1), " & ", fpp(sections[sec==sect]$C2,2), " & ", 
-        fp(sections[sec==sect]$C3), " & ", fpp(sections[sec==sect]$C4,2), " & ", fpp(sections[sec==sect]$C5,2), " \\\\  \n")
+for (sect in sort(df_table$sec)){
+    cat(df_table[sec==sect]$desc, " & ", df_table[sec==sect]$sec, " & ", fp(df_table[sec==sect]$C1), " & ", fpp(df_table[sec==sect]$C2,2), " & ", 
+        fp(df_table[sec==sect]$C3), " & ", fpp(df_table[sec==sect]$C4,2), " & ", fpp(df_table[sec==sect]$C5,2), " \\\\  \n")
 }
 cat("\\bottomrule \n")
 cat("\\end{tabular} \n")
@@ -70,3 +70,6 @@ cat("\\end{table} \n")
 cat("\\end{document} \n")
 sink()
 
+#///////////////////////////////////////////////////////////////////////////////
+#### Table ?  # Section ? ####
+#///////////////////////////////////////////////////////////////////////////////

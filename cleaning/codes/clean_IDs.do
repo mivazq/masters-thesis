@@ -12,7 +12,7 @@
 *                   $ecuRaw/characteristics/id_charac_mar19.dta
 * Output:
 *                   $pathFun/replaceID.dta
-*                   $pathEst/input/entities.csv
+*                   $pathCle/output/entities.csv
 ////////////////////////////////////////////////////////////////////////////////
 quietly do "~/data/transactions_ecuador/3_mivazq/Masters_Thesis/setup.do"
 ////////////////////////////////////////////////////////////////////////////////
@@ -314,4 +314,5 @@ tab entity if match_F101==1 | match_F102==1
 keep  id_sri entity
 gsort id_sri
 compress
-export delimited $pathEst/input/entities.csv, replace
+export delimited $pathCle/output/entities.csv, replace
+

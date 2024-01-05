@@ -7,7 +7,7 @@
 * Input:
 *                   $ecuRaw/purchaseRecords/
 * Output:
-*                   $pathEst/input/purchase_annexes.csv
+*                   $pathCle/output/purchase_annexes.csv
 ////////////////////////////////////////////////////////////////////////////////
 quietly do "~/data/transactions_ecuador/3_mivazq/Masters_Thesis/setup.do"
 ////////////////////////////////////////////////////////////////////////////////
@@ -23,7 +23,7 @@ local files: dir "$ecuRaw/purchaseRecords" files "*.dta"
 di `files'
 
 * Create folder to store intermediate cleaned files
-cap mkdir "$pathEst/input/cleaning_intermediate/PA/"
+cap mkdir "$pathCle/input/cleaning_intermediate/PA/"
 
 * Iterate over all files
 foreach file in `files' {
@@ -103,7 +103,7 @@ foreach file in `files' {
     keep  register_date year id_buyer id_seller tax_base_12 vat tax_base_0 non_subject_VAT
     order register_date year id_buyer id_seller tax_base_12 vat tax_base_0 non_subject_VAT
 	compress
-	save "$pathEst/input/cleaning_intermediate/PA/`file'", replace
+	save "$pathCle/output/cleaning_intermediate/PA/`file'", replace
 }
 
 
@@ -116,12 +116,12 @@ foreach file in `files' {
 // the two different 2012 datasets.
 
 * Load first 2012 dataset and tag duplicates
-use $pathEst/input/cleaning_intermediate/PA/compras_2012_check_readme.dta, clear
+use $pathCle/input/cleaning_intermediate/PA/compras_2012_check_readme.dta, clear
 gduplicates tag, gen(tag_q1q3)
 
 * Load second 2012 dataset and tag duplicates
 preserve
-    use $pathEst/input/cleaning_intermediate/PA/annexo_q4_2012.dta, clear
+    use $pathCle/input/cleaning_intermediate/PA/annexo_q4_2012.dta, clear
     gduplicates tag, gen(tag_q4)
     tempfile annexo_q4
     save `annexo_q4'
@@ -143,7 +143,7 @@ drop tag*
 
 * Save combined 2012 file
 compress
-save $pathEst/input/cleaning_intermediate/PA/compras_2012.dta, replace
+save $pathCle/input/cleaning_intermediate/PA/compras_2012.dta, replace
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -151,13 +151,13 @@ save $pathEst/input/cleaning_intermediate/PA/compras_2012.dta, replace
 ////////////////////////////////////////////////////////////////////////////////
 
 * Store all the file names in intermediate
-local files: dir "$pathEst/input/cleaning_intermediate/PA/" files "*.dta"
+local files: dir "$pathCle/input/cleaning_intermediate/PA/" files "*.dta"
 
 * Combine all files together (excluding the two separate 2012 files)
 clear all
 foreach file in `files' {
     if !inlist("`file'", "compras_2012_check_readme.dta", "annexo_q4_2012.dta") {
-        append using $pathEst/input/cleaning_intermediate/PA/`file'
+        append using $pathCle/input/cleaning_intermediate/PA/`file'
     }
 }
 
@@ -271,25 +271,26 @@ assert transaction_value>=1 // due to rounding
 
 * Export at year-buyer-seller level
 compress
-export delimited $pathEst/input/intermediate_transactions.csv, replace
+export delimited $pathCle/output/intermediate_transactions.csv, replace
 
 * Export intermediate cost
 preserve
-    gcollapse (sum) cost_intermediate = transaction_value, by(year id_buyer)
+    gcollapse (sum) cost_transactions = transaction_value, by(year id_buyer)
     rename id_buyer id_sri
-    export delimited $pathEst/input/intermediate_cost.csv, replace
+    export delimited $pathCle/output/intermediate_cost.csv, replace
 restore
 
 * Export intermediate revenue
 preserve
-    gcollapse (sum) revenue_intermediate = transaction_value, by(year id_seller)
+    gcollapse (sum) revenue_transactions = transaction_value, by(year id_seller)
     rename id_seller id_sri
-    export delimited $pathEst/input/intermediate_revenue.csv, replace
+    export delimited $pathCle/output/intermediate_revenue.csv, replace
 restore
 
 //     * Delete folder of intermediate files and its contents
-//     local files: dir "$pathEst/input/cleaning_intermediate/PA/" files "*.dta"
+//     local files: dir "$pathCle/input/cleaning_intermediate/PA/" files "*.dta"
 //     foreach file in `files' {
-//         rm "$pathEst/input/cleaning_intermediate/PA/`file'"
+//         rm "$pathCle/input/cleaning_intermediate/PA/`file'"
 //     }
-//     rmdir "$pathEst/input/cleaning_intermediate/PA/"
+//     rmdir "$pathCle/input/cleaning_intermediate/PA/"
+

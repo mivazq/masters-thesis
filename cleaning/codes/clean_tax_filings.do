@@ -8,13 +8,13 @@
 *                   $ecuRaw/F101/
 *                   $ecuRaw/F102/
 * Output:
-*                   $pathEst/input/tax_filings.csv
+*                   $pathCle/output/tax_filings.csv
 ////////////////////////////////////////////////////////////////////////////////
 quietly do "~/data/transactions_ecuador/3_mivazq/Masters_Thesis/setup.do"
 ////////////////////////////////////////////////////////////////////////////////
 
 * Create folder to store intermediate cleaned files
-cap mkdir "$pathEst/input/cleaning_intermediate/F10X/"
+cap mkdir "$pathCle/input/cleaning_intermediate/F10X/"
 
 * Iterate over files
 foreach form in F101 F102 {
@@ -132,15 +132,15 @@ foreach form in F101 F102 {
             format sub_date %tc
 
             * Save
-            save "$pathEst/input/cleaning_intermediate/F10X/`form'_`type'_`year'.dta", replace
+            save "$pathCle/input/cleaning_intermediate/F10X/`form'_`type'_`year'.dta", replace
         }
     }
     
     * Combine all files
-    local `form'_files: dir "$pathEst/input/cleaning_intermediate/F10X/" files "`form'_*_20*.dta"
+    local `form'_files: dir "$pathCle/input/cleaning_intermediate/F10X/" files "`form'_*_20*.dta"
     clear all
     foreach file of local `form'_files {
-        qui append using "$pathEst/input/cleaning_intermediate/F10X/`file'"
+        qui append using "$pathCle/input/cleaning_intermediate/F10X/`file'"
     }
     
     * Check identifying variables are not missing nor zeros
@@ -239,13 +239,13 @@ foreach form in F101 F102 {
     drop profit loss sign disc
     
     * Save dataset
-    save "$pathEst/input/cleaning_intermediate/F10X/full_`form'.dta", replace
+    save "$pathCle/input/cleaning_intermediate/F10X/full_`form'.dta", replace
     
 }
 
 * Combine F101 and F102 forms 
-use $pathEst/input/cleaning_intermediate/F10X/full_F101.dta, clear
-append using $pathEst/input/cleaning_intermediate/F10X/full_F102.dta
+use $pathCle/input/cleaning_intermediate/F10X/full_F101.dta, clear
+append using $pathCle/input/cleaning_intermediate/F10X/full_F102.dta
 gsort id_sri year form 
 
 * Deal with duplicates by simply applying the same criterion as above, keep last filing
@@ -272,4 +272,5 @@ format id_sri year revenue_total cost_total result %20.0g
 
 * Save
 compress
-export delimited $pathEst/input/tax_filings.csv, replace
+export delimited $pathCle/output/tax_filings.csv, replace
+

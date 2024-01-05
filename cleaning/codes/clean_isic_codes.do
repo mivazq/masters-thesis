@@ -8,7 +8,7 @@
 * Input:
 *                   $ecuRaw/nomenclatures/ISIC_codes.csv
 * Output:
-*                   $pathEst/input/isic_codes.csv
+*                   $pathCle/output/isic_codes.csv
 ////////////////////////////////////////////////////////////////////////////////
 quietly do "~/data/transactions_ecuador/3_mivazq/Masters_Thesis/setup.do"
 ////////////////////////////////////////////////////////////////////////////////
@@ -91,7 +91,7 @@ replace isic_class_desc    = "Without economic activity - CIIU" if _n==_N
         order(isic_section), first
         gduplicates drop
         assert _N==17+3 // There are 17 Sections in ISIC Rev.3.1 (+ 3 Special Ecuador)
-        export delimited $pathEst/input/isic_codes_section.csv, replace
+        export delimited $pathCle/output/isic_codes_section.csv, replace
     restore
     
     * Division level
@@ -100,7 +100,7 @@ replace isic_class_desc    = "Without economic activity - CIIU" if _n==_N
         order(isic_division), first
         gduplicates drop
         assert _N==62+3 // There are 62 Divisions in ISIC Rev.3.1 (+ 3 Special Ecuador)
-        export delimited $pathEst/input/isic_codes_division.csv, replace
+        export delimited $pathCle/output/isic_codes_division.csv, replace
     restore
     
     * Group level
@@ -109,7 +109,7 @@ replace isic_class_desc    = "Without economic activity - CIIU" if _n==_N
         order(isic_group), first
         gduplicates drop
         assert _N==161+3 // There are 161 Groups in ISIC Rev.3.1 (+ 3 Special Ecuador)
-        export delimited $pathEst/input/isic_codes_group.csv, replace
+        export delimited $pathCle/output/isic_codes_group.csv, replace
     restore
     
     * Class level
@@ -118,5 +118,5 @@ replace isic_class_desc    = "Without economic activity - CIIU" if _n==_N
         order(isic_class), first
         gduplicates drop
         assert _N==298+3 // There are 298 Classes in ISIC Rev.3.1 (+ 3 Special Ecuador)
-        export delimited $pathEst/input/isic_codes_class.csv, replace
+        export delimited $pathCle/output/isic_codes_class.csv, replace
     restore

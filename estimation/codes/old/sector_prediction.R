@@ -6,10 +6,10 @@
 #                   and purchase behaviours.
 # Input:            
 #                   $pathEst/input/firm_ids.Rdata
-#                   $pathEst/input/intermediate_transactions.csv
-#                   $pathEst/input/firm_info.csv
-#                   $pathEst/input/isic_codes_sections.csv
-#                   $pathEst/input/isic_codes_division.csv
+#                   $pathCle/output/intermediate_transactions.csv
+#                   $pathCle/output/firm_info.csv
+#                   $pathCle/output/isic_codes_sections.csv
+#                   $pathCle/output/isic_codes_division.csv
 # Output:           
 #                   -
 #///////////////////////////////////////////////////////////////////////////////
@@ -22,9 +22,9 @@ source('~/data/transactions_ecuador/3_mivazq/Masters_Thesis/setup.R')
 load(paste0(pathEst, "input/firm_ids.Rdata")) # load sample of firm IDs we are interested in
 
 # Load transactions and firm information
-df_transactions <- fread(file=paste0(pathEst, "input/intermediate_transactions.csv"), 
+df_transactions <- fread(file=paste0(pathCle, "output/intermediate_transactions.csv"), 
                          na.strings="", colClasses = c(transaction_value = "double"))
-df_firm_info    <- fread(file=paste0(pathEst, "input/firm_info.csv"), na.strings="")
+df_firm_info    <- fread(file=paste0(pathCle, "output/firm_info.csv"), na.strings="")
 df_firm_info[, startdate := as.Date(strptime(startdate, format = "%d%b%Y"))]
 
 # Let's first try with sections only!!!
@@ -32,7 +32,7 @@ keep_sectors = c("A","B","C","D","E","F","G","H","I","J","K","L","M","N","O")
 nr_sectors = length(keep_sectors) # 15 sections in ISIC Rev 3.1 (excluding P and Q), also exclude 3 special Ecuador (R, S, T)
 
 # Load ISIC divisions
-df_isic_divisions <- fread(file=paste0(pathEst, "input/isic_codes_division.csv"), na.strings="")
+df_isic_divisions <- fread(file=paste0(pathCle, "output/isic_codes_division.csv"), na.strings="")
 keep_divisions = df_isic_divisions$isic_division[substr(df_isic_divisions$isic_division,1,1) %in% keep_sectors]
 nr_divisions = length(keep_divisions)
 
@@ -220,31 +220,6 @@ single_seller_vectors <- dcast.data.table(data = single_seller_vectors,
 # single_seller_vectors <- single_seller_vectors[, -c("buyer_isic_section")]
 # colnames <- colnames(single_seller_vectors)
 # single_seller_vectors[, (colnames) := lapply(.SD, l2_normalize), .SDcols = colnames]
-
-# # Split the original data.table into a list of smaller data.tables
-# chunk_size <- 100000
-# col_batches <- split(colnames, ceiling(seq_along(colnames) / chunk_size))
-# normalized_tables <- list()
-# i = 1
-# # Process each chunk independently
-# for (batch in col_batches) {
-#     result <- system.time({
-#     # Create a temporary data.table with the selected columns
-#     temp_dt <- single_seller_vectors[, (batch), with = FALSE]
-#     
-#     # Normalize the selected columns
-#     temp_dt[, (batch) := lapply(.SD, l2_normalize), .SDcols = batch]
-#     
-#     # Add the normalized data.table to the list
-#     normalized_tables[[length(normalized_tables) + 1]] <- temp_dt
-#     })
-#     elapsed_time <- result["elapsed"]
-#     cat("Elapsed Time for iteration",i,":", elapsed_time, "seconds\n")
-#     i = i + 1
-# }
-# 
-# # Combine the normalized data.tables into a single data.table
-# single_seller_vectors <- do.call(cbind, normalized_tables)
 
 
 

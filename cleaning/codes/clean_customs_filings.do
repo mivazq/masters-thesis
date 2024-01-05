@@ -7,8 +7,8 @@
 *					$ecuRaw/customsData/Exports_08_12_Final.dta
 * 					$ecuRaw/customsData/Imports_08_12_Final.dta
 * Output:
-*					$pathEst/input/exports.csv
-*					$pathEst/input/imports.csv
+*					$pathCle/output/exports.csv
+*					$pathCle/output/imports.csv
 ////////////////////////////////////////////////////////////////////////////////
 quietly do "~/data/transactions_ecuador/3_mivazq/Masters_Thesis/setup.do"
 ////////////////////////////////////////////////////////////////////////////////
@@ -48,7 +48,7 @@ drop if exports<=0
 
 * Save
 format %20.0g exports
-export delimited "$pathEst/input/exports.csv", replace
+export delimited "$pathCle/output/exports.csv", replace
 
 ////////////////////////////////////////////////////////////////////////////////
 **#                             2 - IMPORTS
@@ -81,4 +81,5 @@ drop if imports<=0
 
 * Save
 format %20.0g imports
-export delimited "$pathEst/input/imports.csv", replace
+export delimited "$pathCle/output/imports.csv", replace
+
