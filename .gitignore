@@ -1,14 +1,14 @@
 # History files
-.Rhistory
+*.Rhistory
 
 # Data files
-.RData
-.dta
-.csv
-.xls
-.xlsx
+*.RData
+*.dta
+*.csv
+*.xls
+*.xlsx
 
 # Output files
-.tex
-.pdf
-.png
+*.tex
+*.pdf
+*.png
