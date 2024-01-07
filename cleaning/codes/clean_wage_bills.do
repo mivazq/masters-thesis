@@ -16,16 +16,16 @@ quietly do "~/data/transactions_ecuador/3_mivazq/Masters_Thesis/setup.do"
 cap mkdir "$pathCle/input/cleaning_intermediate/SS/"
 
 * 1a) Load and clean IESS data
+clear all
 save $pathCle/input/cleaning_intermediate/SS/IESS.dta, replace emptyok // create empty file
-foreach year in 07 08 09 10 11 12 13 14 15 16 17 {
+// foreach year in 07 08 09 10 11 12 13 14 15 16 17 {
+foreach year in 08 09 10 11 {
     
     di "Now processing year 20`year' of IESS data"
 	use $ecuRaw/employment/IESS_`year'_ids.dta, clear
 	
-	* Transform ids that are based on SSN into RUC
-	replaceID id_employer id_employee
-    
-    * Merge public oil exporter
+    * Transform SSN ids into RUCs and merge public oil firm
+    replaceID id_employer id_employee
     replace id_employer = 129098 if id_employer == 128357
     replace id_employee = 129098 if id_employee == 128357
 	
@@ -62,10 +62,11 @@ foreach year in 07 08 09 10 11 12 13 14 15 16 17 {
 	save $pathCle/input/cleaning_intermediate/SS/IESS.dta, replace
 }
 
-
 * 1b) Load and clean F107 data
+clear all
 save $pathCle/input/cleaning_intermediate/SS/F107.dta, replace emptyok // create empty file
-foreach year in 09 10 11 12 13 14 15 16 {
+// foreach year in 09 10 11 12 13 14 15 16 {
+foreach year in 09 10 11 {
     
     di "Now processing year 20`year' of F107 data"
 	use $ecuRaw/employment/employer_employee_20`year'.dta, clear
@@ -74,10 +75,8 @@ foreach year in 09 10 11 12 13 14 15 16 {
 	rename (marca       sueldo_iess	 sueldo_f107 sob_suel_com_remu partic_utilidades  decimo_tercero  decimo_cuarto   fondo_reserva id_empleador id_empleado) ///
 	       (data_source wages_iess   salary_f107 benefits_f107     participation_f107 thirteenth_f107 fourteenth_f107 reserve_f107  id_employer  id_employee)
     
-	* Transform ids that are based on SSN into RUC
-	replaceID id_employer id_employee
-    
-    * Merge public oil exporter
+    * Transform SSN ids into RUCs and merge public oil firm
+    replaceID id_employer id_employee
     replace id_employer = 129098 if id_employer == 128357
     replace id_employee = 129098 if id_employee == 128357
     
@@ -276,20 +275,19 @@ foreach year in 09 10 11 12 13 14 15 16 {
     drop benefits_multiplier
     merge m:1 id_employer using `benefits_multiplier', nogen assert (master match)
     sum benefits_multiplier, d // median: 1.18193, mean 1.195473
-    replace benefits_multiplier = 1 if benefits_multiplier<1 & !missing(benefits_multiplier) // lower cap at 1 (affects ~1% of obs)
+    replace benefits_multiplier = 1 if benefits_multiplier<1 & !missing(benefits_multiplier) // lower cap at 1 (affects ~1% of obs) ### MVV: review, now much more than 1% of obs
     replace benefits_multiplier = 2 if benefits_multiplier>2 & !missing(benefits_multiplier) // upper cap at 2 (affects ~1% of obs)
     sum benefits_multiplier, d // median: 1.18193, mean 1.195473
     
     * As expected, most observations that can be "fixed" are from years where 
     * we don't have the most reliable source (2007, 2008, 2017)
     tab year if missing(final_wage) & !missing(benefits_multiplier)
-    sum benefits_multiplier, d // median: 1.232972, mean 1.312767
     
     * Assign missing 'final_wage' as 'wage' times 'benefits_multiplier' when available
     replace final_wage = wage * benefits_multiplier if missing(final_wage)
     
     * For the employers for which we don't have a 'benefits_multiplier' we use
-    * the median one
+    * the median one # MVV: should also count on how many observations the multiplier is constructed and also used median when this number very low (unreliable!)
     qui sum benefits_multiplier, d
     replace final_wage = wage * `r(p50)' if missing(final_wage)
     
@@ -303,7 +301,7 @@ foreach year in 09 10 11 12 13 14 15 16 {
     rename id_employer id_sri
     
     * Round and save
-    replace wages = round(wages)
+    replace wages = round(wages)  // # MVV Note that if I cap multiplier at lower than 1 above (e.g. 0.75) I might create new wages below $1 which need to be dropped here
     compress
     export delimited $pathCle/output/wage_bills.csv, replace
 

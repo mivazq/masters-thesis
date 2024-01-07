@@ -49,7 +49,7 @@ setnames(df_plot, ".", "count")
 plot <- ggplot(df_plot, aes(x=exit_year,y=count)) + 
     geom_col() +
     scale_y_continuous(limits = c(0, 10000)) +
-    xlab("Year") + ylab("Exits  ") + 
+    xlab("Year") + ylab("Exits   ") + 
     ggtitle("Exit year of exiting firms in sample") + 
     theme_bw() + theme(axis.title.y = element_text(angle=0, vjust=0.5))
 ggsave(plot, filename = paste0(pathFig,sysdate,'_exit_year.png'),width = 12, height = 7)

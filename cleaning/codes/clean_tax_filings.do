@@ -209,7 +209,7 @@ foreach form in F101 F102 {
     assert (revenue_total>=0 & cost_total>=0 & profit>=0 & loss>=0)
     
     * Round values to full dullar
-    foreach var of varlist revenue_total cost_total profit loss {
+    foreach var of varlist asset_* revenue_* cost_* profit loss {
         replace `var' = round(`var')
     }
     
@@ -262,10 +262,10 @@ drop dup
 * Ensure no more duplicates
 isid id_sri year
 
-* Merge Merge public oil exporter
+* Merge public oil exporter
 assert form == "F101" if inlist(id_sri, 128357, 129098)
 replace id_sri = 129098 if id_sri == 128357
-gcollapse (sum) revenue_total cost_total result, by(form id_sri year)
+gcollapse (sum) asset_* revenue_* cost_* result, by(form id_sri year)
 
 * Format
 format id_sri year revenue_total cost_total result %20.0g

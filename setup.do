@@ -11,7 +11,7 @@
 version 18
 
 * Install packages
-foreach file in gtools ftools cfvars mdesc carryforward {
+foreach file in gtools ftools cfvars mdesc carryforward distinct {
 	capture findfile `file'.ado
 	if _rc == 601 {
         ssc install `file'

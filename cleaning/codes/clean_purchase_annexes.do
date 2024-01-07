@@ -27,6 +27,13 @@ cap mkdir "$pathCle/input/cleaning_intermediate/PA/"
 
 * Iterate over all files
 foreach file in `files' {
+    
+    * Skip 2012-2015 files
+    if inlist("`file'", "compras_2012_check_readme.dta", "annexo_q4_2012.dta", ///
+    "annexo_2013.dta", "compras_2014.dta", "compras_2015.dta") {
+        continue
+    }
+    
 	di "Cleaning `file'..."
 	use "$ecuRaw/purchaseRecords/`file'", clear 
     
@@ -86,8 +93,10 @@ foreach file in `files' {
     * Keep only transactions in the 2008-2015 window
     gen year = yofd(register_date)
     assert !missing(year)
-    count if year < 2008 | year > 2015
-    keep if year >= 2008 & year <= 2015
+//     count if year < 2008 | year > 2015
+//     keep if year >= 2008 & year <= 2015
+    count if year < 2008 | year > 2011
+    keep if year >= 2008 & year <= 2011
     
     * Destring monetary variables if in string
     foreach var of varlist tax_base_12 vat tax_base_0 non_subject_VAT {
@@ -103,47 +112,47 @@ foreach file in `files' {
     keep  register_date year id_buyer id_seller tax_base_12 vat tax_base_0 non_subject_VAT
     order register_date year id_buyer id_seller tax_base_12 vat tax_base_0 non_subject_VAT
 	compress
-	save "$pathCle/output/cleaning_intermediate/PA/`file'", replace
+	save "$pathCle/input/cleaning_intermediate/PA/`file'", replace
 }
 
-
-////////////////////////////////////////////////////////////////////////////////
-**#                 2 - DEAL WITH OVERLAPPING 2012 SOURCES
-////////////////////////////////////////////////////////////////////////////////
-
-// Note that I don't want to drop duplicates in the single datasets, since I 
-// don't do it for the other years. I only want to drop duplicates *across* 
-// the two different 2012 datasets.
-
-* Load first 2012 dataset and tag duplicates
-use $pathCle/input/cleaning_intermediate/PA/compras_2012_check_readme.dta, clear
-gduplicates tag, gen(tag_q1q3)
-
-* Load second 2012 dataset and tag duplicates
-preserve
-    use $pathCle/input/cleaning_intermediate/PA/annexo_q4_2012.dta, clear
-    gduplicates tag, gen(tag_q4)
-    tempfile annexo_q4
-    save `annexo_q4'
-restore
-
-* Append two sources together and tag duplicates again (excluding "tag" variables)
-append using `annexo_q4'
-qui ds tag*, not
-gduplicates tag `r(varlist)', gen(tag_both)
-
-* Sum individual duplicates tags (taking missing as 0)
-egen tag_q1q3q4 = rowtotal(tag_q1q3 tag_q4)
-
-* Drop observations that appear identically in both datasets but are not 
-* duplicates in the individual datasets. I then drop duplicates from the q4
-* annex.
-drop if tag_both!=tag_q1q3q4 & !missing(tag_q4)
-drop tag*
-
-* Save combined 2012 file
-compress
-save $pathCle/input/cleaning_intermediate/PA/compras_2012.dta, replace
+*** SKIP SINCE NOT USING 2012
+// ////////////////////////////////////////////////////////////////////////////////
+// **#                 2 - DEAL WITH OVERLAPPING 2012 SOURCES
+// ////////////////////////////////////////////////////////////////////////////////
+//
+// // Note that I don't want to drop duplicates in the single datasets, since I 
+// // don't do it for the other years. I only want to drop duplicates *across* 
+// // the two different 2012 datasets.
+//
+// * Load first 2012 dataset and tag duplicates
+// use $pathCle/input/cleaning_intermediate/PA/compras_2012_check_readme.dta, clear
+// gduplicates tag, gen(tag_q1q3)
+//
+// * Load second 2012 dataset and tag duplicates
+// preserve
+//     use $pathCle/input/cleaning_intermediate/PA/annexo_q4_2012.dta, clear
+//     gduplicates tag, gen(tag_q4)
+//     tempfile annexo_q4
+//     save `annexo_q4'
+// restore
+//
+// * Append two sources together and tag duplicates again (excluding "tag" variables)
+// append using `annexo_q4'
+// qui ds tag*, not
+// gduplicates tag `r(varlist)', gen(tag_both)
+//
+// * Sum individual duplicates tags (taking missing as 0)
+// egen tag_q1q3q4 = rowtotal(tag_q1q3 tag_q4)
+//
+// * Drop observations that appear identically in both datasets but are not 
+// * duplicates in the individual datasets. I then drop duplicates from the q4
+// * annex.
+// drop if tag_both!=tag_q1q3q4 & !missing(tag_q4)
+// drop tag*
+//
+// * Save combined 2012 file
+// compress
+// save $pathCle/input/cleaning_intermediate/PA/compras_2012.dta, replace
 
 
 ////////////////////////////////////////////////////////////////////////////////

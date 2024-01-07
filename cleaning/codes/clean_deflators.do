@@ -48,21 +48,21 @@ rename (Código_CIIU_3 DESCRIPCIÓN) (code description)
 drop if missing(Ene_08)
 
 * Keep only necessary years
-keep code description *_07 *_08 *_09 *_10 *_11 *_12 *_13 *_14 *_15
+keep code description *_07 *_08 *_09 *_10 *_11
 
 * Destring index values
-qui destring *_07 *_08 *_09 *_10 *_11 *_12 *_13 *_14 *_15, replace
+qui destring *_07 *_08 *_09 *_10 *_11, replace
 
 * Generate year indexes by taking averages across the 12 months (this is also how INEC does)
-foreach val in 07 08 09 10 11 12 13 14 15 {
+foreach val in 07 08 09 10 11 {
     egen year_20`val' = rowmean(*_`val')
 }
 
 * Drop monthly values
-drop *_07 *_08 *_09 *_10 *_11 *_12 *_13 *_14 *_15
+drop *_07 *_08 *_09 *_10 *_11
 
 * Adjust index to be base 2007 (to see evolution for all years)
-foreach val in 08 09 10 11 12 13 14 15 {
+foreach val in 08 09 10 11 {
     gen adj_year_20`val' = year_20`val'/year_2007*100
 }
 drop year_*
@@ -96,8 +96,8 @@ rename rev31 code
 
 * Export deflators
 reshape long adj_year_, i(code) j(year)
-drop n
 rename adj_year_ deflator
+isid code year
 export delimited $pathCle/output/deflators.csv, replace
 
 
