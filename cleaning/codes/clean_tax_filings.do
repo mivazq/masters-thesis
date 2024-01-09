@@ -79,17 +79,20 @@ foreach form in F101 F102 {
                 gen asset_fix_compu = c540
                 gen asset_fix_vehic = c550
                 gen asset_fix_other = c560
-                gen asset_fix_acdep = -c580 // Accumulated depreciation, to be interpreted in negative
+                gen asset_fix_acdep = cond(c580<0,-c580,c580) // Accumulated depreciation, to be interpreted in negative. Some might already have filled negative value
                 gen asset_fix_lands = c590
                 gen asset_fix_unfin = c650
                 gen asset_fix_total = c690 // Should equal the sum of all the above
                 gen revenue_total            = c1930
                 gen revenue_export           = c1820
-                gen revenue_other_abroad     = c1830 // ? "(+) OTHER INCOME FROM ABROAD"
+                gen revenue_other_abroad     = c1830
                 gen cost_total               = c3380
                 gen cost_labor               = c2280+c2290+c2300+c2310+c2360+c2370
-                gen cost_imports_goods       = c1980+c1990+c2030
-                gen cost_imports_services    = c2400+c2410
+                gen cost_imports_goods_produ = c1980
+                gen cost_imports_goods_admin = c1990
+                gen cost_imports_rawmat      = c2030
+                gen cost_imports_services_produ    = c2400
+                gen cost_imports_services_admin    = c2410
                 gen cost_asset_fix_dep_produ = c3220+c3240
                 gen cost_asset_fix_dep_admin = c3230+c3250
                 gen profit                   = c3420
@@ -103,17 +106,20 @@ foreach form in F101 F102 {
                 gen asset_fix_compu = c480
                 gen asset_fix_vehic = c490
                 gen asset_fix_other = c500
-                gen asset_fix_acdep = -c530 // Accumulated depreciation, to be interpreted in negative
+                gen asset_fix_acdep = cond(c530<0,-c530,c530) // Accumulated depreciation, to be interpreted in negative. Some might already have filled negative value
                 gen asset_fix_lands = c540
                 gen asset_fix_unfin = c550
                 gen asset_fix_total = c560 // Should equal the sum of all the above
                 gen revenue_total            = c1440
                 gen revenue_export           = c1370
-                gen revenue_other_abroad     = c1380 // ? "(+) OTHER INCOME FROM ABROAD"
+                gen revenue_other_abroad     = c1380
                 gen cost_total               = c2760
                 gen cost_labor               = c1620+c1630+c1650+c1660+c1670+c1680
-                gen cost_imports_goods       = c1490+c1500+c1550        
-                gen cost_imports_services    = c1730+c1740
+                gen cost_imports_goods_produ = c1490
+                gen cost_imports_goods_admin = c1500
+                gen cost_imports_rawmat      = c1550
+                gen cost_imports_services_produ    = c1730
+                gen cost_imports_services_admin    = c1740
                 gen cost_asset_fix_dep_produ = c2510+c2550
                 gen cost_asset_fix_dep_admin = c2520+c2560
                 gen profit                   = c2800
@@ -208,10 +214,10 @@ foreach form in F101 F102 {
     * Assert values are always zero or greater
     assert (revenue_total>=0 & cost_total>=0 & profit>=0 & loss>=0)
     
-    * Round values to full dullar
-    foreach var of varlist asset_* revenue_* cost_* profit loss {
-        replace `var' = round(`var')
-    }
+//     * Round values to full dullar
+//     foreach var of varlist asset_* revenue_* cost_* profit loss {
+//         replace `var' = round(`var')
+//     }
     
     * Generate result since profit/loss are not well defined
     gen double result = revenue_total - cost_total
@@ -266,6 +272,9 @@ isid id_sri year
 assert form == "F101" if inlist(id_sri, 128357, 129098)
 replace id_sri = 129098 if id_sri == 128357
 gcollapse (sum) asset_* revenue_* cost_* result, by(form id_sri year)
+
+* Replace negative total assets with zero (will fix later if possible)
+replace asset_fix_total = 0 if asset_fix_total<0
 
 * Format
 format id_sri year revenue_total cost_total result %20.0g

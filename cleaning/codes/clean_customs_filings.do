@@ -43,8 +43,8 @@ label var nandina "10-digit NANDINA code"
 gcollapse (sum) exports, by(year id_sri)
 
 * Round and drop negatives and zeros
-replace exports = round(exports)
-drop if exports<=0
+// replace exports = round(exports)
+drop if round(exports)<=0
 
 * Save
 format %20.0g exports
@@ -58,9 +58,26 @@ export delimited "$pathCle/output/exports.csv", replace
 use $ecuRaw/customsData/Imports_08_12_Final.dta, clear
 rename (value_cif Country id) (imports country id_sri)
 
+* Generate fees
+egen fees = rowtotal(advalorem_duty other_fees ice_tax va_tax other_duties)
+
 * Transform SSN ids into RUCs and merge public oil firm
 replaceID id_sri
 replace id_sri = 129098 if id_sri == 128357
+
+* Drop zero entries
+drop if imports==0 & fees==0
+
+* Replace negative VAT in one observations
+replace va_tax = 0 if va_tax < 0
+
+* Generate rate of fees to import value
+gen rate = fees/imports
+
+* Fix fees in case they are too high 
+* To be conservative, I believe fees higher than 10 times the value must be errors
+replace fees = fees/1000 if rate>10
+replace rate = fees/imports // recalculate rates now
 
 * Keep only relevant years
 keep if year>=2008 & year<=2011
@@ -73,13 +90,14 @@ label var country "Source Country"
 label var nandina "10-digit NANDINA code"
 
 * Collapse data and save
-gcollapse (sum) imports, by(year id_sri)
+gcollapse (sum) imports fees, by(year id_sri)
 
 * Round and drop negatives and zeros
-replace imports = round(imports)
-drop if imports<=0
+// replace imports = round(imports)
+drop if round(imports)<=0
 
 * Save
 format %20.0g imports
+format %20.0g fees
 export delimited "$pathCle/output/imports.csv", replace
 

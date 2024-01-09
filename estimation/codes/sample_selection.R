@@ -68,7 +68,7 @@ df_firm_info[, startyear := year(startdate)]
 
 # For entry, take firm registry as first input and adapt in contradicting cases
 firm_sample <- merge(firm_sample, df_firm_info[,.(id_sri,startyear)], by="id_sri", all.x = T)
-firm_sample <- merge(firm_sample, unique(df_active[,.(id_sri,first_filing,last_filing)]), by="id_sri", all.x = T)
+firm_sample <- merge(firm_sample, unique(df_active[,.(id_sri,first_filing,last_filing,missing_year_sample)]), by="id_sri", all.x = T)
 colSums(is.na(firm_sample)) # check that there are no missing values
 warning("There are ",nrow(firm_sample[first_filing<startyear])," firms in our sample where their 'first filing' < 'start date' in the firm registry")
 firm_sample[, entry_year := startyear]
@@ -105,7 +105,7 @@ if (nrow(panel)!=nrow(firm_sample)*4) {
 }
 
 # Reorganise variables
-panel <- panel[, .(year, id_sri, entity, soe, isic_section, entry_year, exit_year)]
+panel <- panel[, .(year, id_sri, entity, soe, isic_section, entry_year, exit_year, missing_year_sample)]
 setorder(panel, "id_sri","year")
 
 # Create dummies for activity/entry/exit

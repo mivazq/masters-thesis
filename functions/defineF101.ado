@@ -25,9 +25,11 @@ program define defineF101, rclass
 ////////////////////////////////////////////////////////////////////////////////
 **#                             1 - LABEL FORM CELLS
 ////////////////////////////////////////////////////////////////////////////////
-/*
+use "/home/mivazq/data/transactions_ecuador/1_rawdata/F101/F101_2008_jul2012.dta" , clear
+order c*, seq
 
 *** TRANSACTIONS WITH RELATED PARTIES ABROAD DURING THE FISCAL PERIOD
+cap lab var c110  "RECORD"
 cap lab var c112  "(+) ASSETS WITH RELATED PARTIES ABROAD - TAX HEAVEN"
 cap lab var c113  "(+) LIABILITIES WITH RELATED PARTIES ABROAD - TAX HEAVEN"
 cap lab var c114  "(+) INCOME WITH RELATED PARTIES ABROAD - TAX HEAVEN"
@@ -38,11 +40,18 @@ cap lab var c140  "(+) INCOME WITH RELATED PARTIES ABROAD - OTHER REGIME"
 cap lab var c150  "(+) EXPENDITURE WITH RELATED PARTIES ABROAD - OTHER REGIME"
 cap lab var c160  "(=) TOTAL OPERATIONS WITH RELATED PARTIES FROM ABROAD"       // Total
 
+* Drop (not needed)
+forval i=110/169 {
+    cap drop c`i'
+}
+
+////////////////////////////////////////////////////////////////////////////////
 
 *** BALANCE SHEET - ASSETS
 * CURRENT ASSETS
 cap lab var c170  "(+) FUNDS, BANKS ASSETS"
 cap lab var c180  "(+) CURRENT INVESTMENTS"
+cap lab var c190  "(+) TEMPORARY INVESTMENTS"
 cap lab var c200  "(+) ACCOUNTS RECEIVABLE FROM NATURAL PERSONS OR FIRMS - RELATED HOME"
 cap lab var c210  "(+) ACCOUNTS RECEIVABLE FROM NATURAL PERSONS OR FIRMS - RELATED ABROAD"
 cap lab var c220  "(+) ACCOUNTS RECEIVABLE FROM NATURAL PERSONS OR FIRMS - NOT RELATED HOME"
@@ -51,39 +60,148 @@ cap lab var c240  "(+) OTHER ACCOUNTS RECEIVABLE (e.g. FROM EMPLOYEES) - RELATED
 cap lab var c250  "(+) OTHER ACCOUNTS RECEIVABLE (e.g. FROM EMPLOYEES) - RELATED ABROAD"
 cap lab var c260  "(+) OTHER ACCOUNTS RECEIVABLE (e.g. FROM EMPLOYEES) - NOT RELATED HOME"
 cap lab var c270  "(+) OTHER ACCOUNTS RECEIVABLE (e.g. FROM EMPLOYEES) - NOT RELATED ABROAD"
+cap lab var c280  "(=) ACCOUNTS RECEIVABLE FROM NATURAL PERSONS OR FIRMS - RELATED"     // c200 + c210
+cap lab var c290  "(=) ACCOUNTS RECEIVABLE FROM NATURAL PERSONS OR FIRMS - NOT RELATED" // c220 + c230
+cap lab var c300  "(=) OTHER ACCOUNTS RECEIVABLE (e.g. FROM EMPLOYEES)" // c240 + c250 + c260 + c270
 cap lab var c310  "(-) PROVISION FOR UNCOLLECTIBLE ACCOUNTS"
 cap lab var c320  "(+) TAX CREDIT IN FAVOR OF THE TAX PAYER (VAT)"
-cap lab var c330  "(+) TAX CREDIT IN FAVOR OF THE TAX PAYER (INCOME TAX)"
+cap lab var c330  "(=) TAX CREDIT IN FAVOR OF THE TAX PAYER (INCOME TAX)" // c340 + c350
+cap lab var c340  "(+) TAX CREDIT IN FAVOR OF THE TAX PAYER (INCOME TAX) - PREVIOUS YEARS"
+cap lab var c350  "(+) TAX CREDIT IN FAVOR OF THE TAX PAYER (INCOME TAX) - CURRENT YEAR"
 cap lab var c360  "(+) INVENTORY OF RAW MATERIAL"
 cap lab var c370  "(+) INVENTORY OF GOODS IN PROCESS"
 cap lab var c380  "(+) INVENTORY OF SUPPLIES AND MATERIALS"
 cap lab var c390  "(+) INVENTORY OF FINISHED GOODS AND MERCHANDISE IN THE STORE"
 cap lab var c400  "(+) GOODS IN TRANSIT"
 cap lab var c410  "(+) INVENTORY OF SPARE PARTS, TOOLS AND ACCESSORIES"
-cap lab var c420  "(+) ASSETS PAID IN ADVANCE"
+cap lab var c420  "(=) ASSETS PAID IN ADVANCE" // c430 + c440 + c450
+cap lab var c430  "(+) INSURANCE PAID IN ADVANCE"
+cap lab var c440  "(+) RENT PAID IN ADVANCE"
+cap lab var c450  "(+) DIVIDENDS PAID IN ADVANCE"
 cap lab var c460  "(+) OTHER CURRENT ASSETS"
 cap lab var c470  "(=) TOTAL CURRENT ASSETS"                                    // Total
 
-* FIXED ASSETS
-cap lab var c480  "(+) PROPERTY (EXCEPT LAND)"
+* Regenerate sum variables to use instead of single cells (seems to work better)
+recast double c170-c470
+replace c280 = cond(c200!=0 | c210!=0, c200 + c210, c280) // keep sum if singles are zero
+replace c290 = cond(c220!=0 | c230!=0, c220 + c230, c290) // keep sum if singles are zero
+replace c300 = cond(c240!=0 | c250!=0 | c260!=0 | c270!=0, c240 + c250 + c260 + c270, c300) // keep sum if singles are zero
+replace c330 = cond(c340!=0 | c350!=0, c340 + c350, c330) // keep sum if singles are zero
+replace c420 = cond(c430!=0 | c440!=0 | c450!=0, c430 + c440 + c450, c420) // keep sum if singles are zero
+drop c200 c210           // considered in c280
+drop c220 c230           // considered in c290
+drop c240 c250 c260 c270 // considered in c300
+drop c340 c350           // considered in c330
+drop c430 c440 c450      // considered in c420
+
+* Store final sums (reported and calculated) and drop not needed remaining cells
+gen double tot_CA_prov = cond(c310>0, -c310, c310)
+gen double tot_CA      = c470
+gen double tot_CA_calc = c170 + c180 + c190 + c280 + c290 + c300 + c320 + c330 + c360 + c370 + c380 + c390 + c400 + c410 + c420 + c460 + tot_CA_prov
+format %20.0g tot_*
+lab var tot_CA      "(=) TOTAL CURRENT ASSETS - REPORTED"
+lab var tot_CA_calc "(=) TOTAL CURRENT ASSETS - CALCULATED"
+lab var tot_CA_prov "(-) TOTAL CURRENT ASSETS PROVISIONS"
+drop c170 c180 c190 c280 c290 c300 c310 c320 c330 c360 c370 c380 c390 c400 c410 c420 c460 c470
+
+////////////////////////////////////////////////////////////////////////////////
+
+* FIXED ASSETS (TANGIBLE)
+cap lab var c480  "(+) BUILDINGS"
 cap lab var c490  "(+) SHIPS, AIRCRAFT, AND BARGES (ETC.)"
-cap lab var c500  "(+) FURNITURE/FURNISHINGS"
-cap lab var c510  "(+) MACHINERY, EQUIPMENT, AND FACILITIES"
+cap lab var c500  "(+) FURNITURE, FURNISHINGS"
+cap lab var c510  "(=) MACHINERY, EQUIPMENT, FACILITIES" // c630 + c640
+cap lab var c520  "(=) MACHINERY, EQUIPMENT, FACILITIES, FURNITURE, FURNISHINGS" // c500 + c510   OR   c500 + (630 + c640)
+cap lab var c530  "(=) MACHINERY, EQUIPMENT, FACILITIES, FURNITURE, FURNISHINGS, BUILDINGS" // c480 + c520   OR   c480 + (c500 + c510)
 cap lab var c540  "(+) COMPUTER EQUIPMENT AND SOFTWARE"
 cap lab var c550  "(+) VEHICLES AND TRANSPORTATION EQUIPMENT"
 cap lab var c560  "(+) OTHER FIXED ASSETS"
-cap lab var c580  "(-) ACCUMULATED DEPRECIATION OF FIXED ASSETS"
+cap lab var c570  "(=) TOTAL ACCUMULATED DEPRECIATION OF FIXED ASSETS" // c580 + c660 + c670
+cap lab var c580  "(-) ACCUMULATED DEPRECIATION OF FIXED ASSETS - NON ACCELERATED"
 cap lab var c590  "(+) LAND"
+cap lab var c600  "(=) BUILDINGS + FACILITIES" // c610 + c630
+cap lab var c610  "(+) BUILDINGS"
+cap lab var c620  "(=) MACHINERY, EQUIPMENT, FURNITURE, FURNISHINGS" // c500 + c640
+cap lab var c630  "(+) FACILITIES"
+cap lab var c640  "(+) MACHINERY, EQUIPMENT"
 cap lab var c650  "(+) NOT FINISHED BUILDINGS"
-cap lab var c690  "(=) TOTAL FIXED ASSETS"                                      // Total
+cap lab var c660  "(-) ACCUMULATED DEPRECIATION OF FIXED ASSETS - ACCELERATED"
+cap lab var c670  "(-) ACCUMULATED DEPRECIATION OF VEHICLES AND TRANSPORTATION EQUIPMENT - ACCELERATED"
+cap lab var c680  "(=) TOTAL FIXED ASSETS TANGIBLES"                            // Total
+cap lab var c690  "(=) TOTAL FIXED ASSETS"                                      // Total (c680+c720) but often confused with c680
+
+* Some people report buildings in c610 some (most) in c480. Let's standardize
+recast double c480-c670
+assert !(c480>0 & c610>0)
+replace c480 = c480 + c610
+drop c610
+
+* Also there are a few "hidden" sums which I don't think I need
+assert c600==0
+assert c620==0
+drop c600 c620 // these sums are redundant as they'll be included in another way
+
+* Regenerate sum variables to use instead of single cells (seems to work better)
+replace c510 = cond(c630!=0 | c640!=0, c630 + c640, c510) // keep sum if singles are zero
+replace c520 = cond(c500!=0 | c510!=0, c500 + c510, c520) // keep sum if singles are zero
+replace c530 = cond(c480!=0 | c520!=0, c480 + c520, c530) // keep sum if singles are zero
+// replace c600 = cond(c480!=0 | c630!=0, c480 + c630, c600) // keep sum if singles are zero    MVV: dropped above
+// replace c620 = cond(c500!=0 | c640!=0, c500 + c640, c620) // keep sum if singles are zero    MVV: dropped above
+replace c570 = cond(c580!=0 | c660!=0 | c670!=0, c580 + c660 + c670, c570)
+drop c630 c640            // considered in c510
+drop c480 c500 c510 c520  // considered in c530 (directly or indirectly)
+drop c580 c660 c670       // all these depreciations have been summed up
+
+* Fix totals (firms have reported differently)
+recast double c680-c720
+replace c680 = cond(c720==0, c690, c690-c720) if c680==0 // replace with diff total - intangible when tangible is 0
+
+* Store final sums (reported and calculated) and drop not needed remaining cells
+gen double tot_FA_acc_dep = cond(c570>0, -c570, c570)
+gen double tot_FA      = c680
+gen double tot_FA_calc = c490 + c530 + c540 + c550 + c560 + c590 + c650 + tot_FA_acc_dep
+format %20.0g tot_*
+lab var tot_FA         "(=) TOTAL FIXED ASSETS - REPORTED"
+lab var tot_FA_calc    "(=) TOTAL FIXED ASSETS - CALCULATED"
+lab var tot_FA_acc_dep "(-) TOTAL FIXED ASSETS ACCUMULATED DEPRECIATION"
+drop c490 c530 c540 c550 c560 c570 c590 c650 c680 c690
+
+////////////////////////////////////////////////////////////////////////////////
 
 * DEFERRED ASSETS (INTANGIBLE)
 cap lab var c700  "(+) TRADEMARKS, PATENTS, ETC."
+cap lab var c710  "(-) ACCUMULATED DEPRECIATION TRADEMARKS, PATENTS, ETC."
+cap lab var c720  "(=) TOTAL INTANGIBLE FIXED ASSETS"
 cap lab var c730  "(+) ORGANIZATIONAL COSTS"
 cap lab var c740  "(+) RESEARCH AND EXPLORATION COSTS"
+cap lab var c750  "(+) BALANCE DEBTOR CURRENCY EXCHANGE"
 cap lab var c760  "(+) OTHER DEFERRED ASSETS"
-cap lab var c770  "(-) ACCUMULATED DEPRECIATION"
+cap lab var c770  "(-) ACCUMULATED DEPRECIATION OTHER"
 cap lab var c780  "(=) TOTAL DEFERRED ASSETS"                                   // Total
+
+* First drop c720 since it's a subtotal that doesn't make sense and sometimes
+* even gets confused for fixed assets total.
+* c700 and c710 simply pertain to deferred assets and most firms do it properly
+recast double c700-c780
+drop c720
+
+* Combine depreciations
+count if c710==c770 & c710!=0 // avoid double counting
+di as input "There are " r(N) " cases of acc.dep. being double-reported"
+replace c770 = cond(c710!=c770, c770 + c710, c770)
+drop c710
+
+* Store final sums (reported and calculated) and drop not needed remaining cells
+gen double tot_DA_acc_dep = cond(c770>0, -c770, c770)
+gen double tot_DA         = c780
+gen double tot_DA_calc    = c700 + c730 + c740 + c750 + c760 - c770
+format %20.0g tot_*
+lab var tot_DA         "(=) TOTAL DEFERRED ASSETS - REPORTED"
+lab var tot_DA_calc    "(=) TOTAL DEFERRED ASSETS - CALCULATED"
+lab var tot_DA_acc_dep "(-) TOTAL DEFERRED ASSETS ACCUMULATED DEPRECIATION"
+drop c700 c730 c740 c750 c760 c770 c780
+
+////////////////////////////////////////////////////////////////////////////////
 
 * LONG TERM ASSETS
 cap lab var c790  "(+) LONG TERM INVESTMENTS - SHARES AND OTHER EQUITY"
@@ -92,17 +210,67 @@ cap lab var c810  "(+) LONG TERM ACCOUNTS RECEIVABLE FROM NATURAL FIRMS OR PERSO
 cap lab var c820  "(+) LONG TERM ACCOUNTS RECEIVABLE FROM NATURAL FIRMS OR PERSONS - RELATED ABROAD"
 cap lab var c830  "(+) LONG TERM ACCOUNTS RECEIVABLE FROM NATURAL FIRMS OR PERSONS - NOT RELATED HOME"
 cap lab var c840  "(+) LONG TERM ACCOUNTS RECEIVABLE FROM NATURAL FIRMS OR PERSONS - NOT RELATED ABROAD"
+cap lab var c850  "(=) LONG TERM ACCOUNTS RECEIVABLE FROM NATURAL FIRMS OR PERSONS" // c810 + c820 + c830 + c840
 cap lab var c860  "(+) OTHER LONG TERM ACCOUNTS RECEIVABLE - RELATED HOME"
 cap lab var c870  "(+) OTHER LONG TERM ACCOUNTS RECEIVABLE - RELATED ABROAD"
 cap lab var c880  "(+) OTHER LONG TERM ACCOUNTS RECEIVABLE - NOT RELATED HOME"
 cap lab var c890  "(+) OTHER LONG TERM ACCOUNTS RECEIVABLE - NOT RELATED ABROAD"
-cap lab var c890  "(-) PROVISION FOR UNCOLLECTIBLE ACCOUNTS"
+cap lab var c900  "(=) OTHER LONG TERM ACCOUNTS RECEIVABLE"  // c860 + c870 + c880 + c890
+cap lab var c910  "(-) PROVISION FOR UNCOLLECTIBLE ACCOUNTS"
 cap lab var c1010 "(+) OTHER LONG TERM ASSETS"
 cap lab var c1070 "(=) TOTAL LONG TERM ASSETS"                                  // Total
+
+* Regenerate sum variables to use instead of single cells (seems to work better)
+recast double c790-c1070
+
+replace c850 = cond(c810!=0 | c820!=0 | c830!=0 | c840!=0, c810 + c820 + c830 + c840, c850) // keep sum if singles are zero
+replace c900 = cond(c860!=0 | c870!=0 | c880!=0 | c890!=0, c860 + c870 + c880 + c890, c890) // keep sum if singles are zero
+drop c810 c820 c830 c840 // considered in c850
+drop c860 c870 c880 c840 // considered in c900
+
+
+
+
+gen same = round(tot_DA,0.01)==round(tot_DA_calc_old,0.01)
+gen same_new = round(tot_DA,0.01)==round(tot_DA_calc,0.01)
+
+tab same same_new
+
+
+
+
+
+* Check for negatives
+forval i=70/80 {
+    local n = `i'*10
+    di "c`n'"
+    count if c`n'<0
+}
+
+
+
+
+
+
+
 
 * TOTAL ASSETS
 cap lab var c1075 "( ) ASSETS COMING FROM REINVESTMENT OF PROFITS"
 cap lab var c1080 "(=) TOTAL ASSETS" // (c470+c690+c780+c1070)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 *** BALANCE SHEET - LIABILITIES & EQUITIES
@@ -336,114 +504,32 @@ cap lab var c3692 "( ) ADVANCE TO PAY - FIRST QUOTA""
 cap lab var c3694 "( ) ADVANCE TO PAY - SECOND QUOTA""
 cap lab var c3696 "( ) ADVANCE TO PAY - BALANCE TO BE SETTLED IN NEXT YEAR'S STATEMENT"
 
-*/
+
 
 ////////////////////////////////////////////////////////////////////////////////
 **#                 2 - DEFINE LOCALS WITH ALL COST/REVENUE CELLS
 ////////////////////////////////////////////////////////////////////////////////
 
-* Revenue 2008-2014
-local revenue_F101_08_14     c1800/*1802*/+c1810/*1812*/+c1820/*1821   1822*/ ///
-                           /*1826*/+c1830/*1831   1836   1838*/+c1840/*1841*/ ///
-                           /*1843   1846   1848*/+c1850/*1851   1853   1856*/ ///
-                           /*1858*/+c1860/*1861   1863   1866   1868*/+c1870 ///
-                           /*1871   1873   1876   1878*/+c1880/*1881   1883*/ ///
-                           /*1886   1888*/+c1890/*1891   1893   1896   1898*/ ///
-                            +c1900/*1901   1903   1906   1908   1911*/+c1920 ///
-                           /*5001   5003   5005   5007   5009   5011   5013*/ ///
-                           /*5015   5017   5019   5021   5023   5025   5027*/ ///
-                           /*5029   5031   5033   5035   5037   5039   5041*/
-
-* Revenue 2015-2017
-local revenue_F101_15_17     c1800 +c1802 +c1810 +c1812 +c1820 +c1821 +c1822 ///
-                            +c1826 +c1830 +c1831 +c1836 +c1838/*1840*/+c1841 ///
-                            +c1843 +c1846 +c1848 +c1850 +c1851 +c1853 +c1856 ///
-                            +c1858 +c1860 +c1861 +c1863 +c1866 +c1868 +c1870 ///
-                            +c1871 +c1873 +c1876 +c1878 +c1880 +c1881 +c1883 ///
-                            +c1886 +c1888 +c1890 +c1891 +c1893 +c1896 +c1898 ///
-                            +c1900 +c1901 +c1903 +c1906 +c1908 +c1911/*1920*/ ///
-                            +c5001 +c5003 +c5005 +c5007 +c5009 +c5011 +c5013 ///
-                            +c5015 +c5017 +c5019 +c5021 +c5023 +c5025 +c5027 ///
-                            +c5029 +c5031 +c5033 +c5035 +c5037 +c5039 +c5041
+local revenue_F101  c1800+c1810+c1820+c1830+c1840+c1850+c1870+c1880+c1890+c1900+c1920
 
 
-*Cost 2008-2012
-local costs_F101_08_12   c1960 +c1970 +c1980 +c1990 -c2000 +c2010 +c2020 +c2030 ///
-                        -c2040 +c2240 -c2250 +c2260 -c2270/*2272   2274*/+c2280 ///
-                        +c2290 +c2300 +c2310 +c2360 +c2370 +c2380 +c2390 +c2400 ///
-                        +c2410 +c2420 +c2430 +c2440 +c2450 +c2640 +c2650        ///
-                        +c2670 +c2680 +c2690 +c2700/*2701*/+c2710 +c2720 +c2730 ///
-                        +c2740 +c2750/*2752   2754*/+c2760 +c2770/*2772   2774*/ ///
-                       /*2776   2778*/+c2780/*2781   2783   2785   2786   2788*/ ///
-                       /*2789*/+c2790/*2792   2794   2797   2799   2801   2804*/ ///
-                       /*2805   2807   2808*/+c2810/*2811   2813   2815   2817*/ ///
-                       /*2819*/+c2820/*2821*/+c2830 +c2840 +c2870/*2871   2872*/ ///
-                       /*2874   2875   2877   2878*/+c2880/*2881   2882   2884*/ ///
-                       /*2886   2888   2889*/+c2890/*2892   2893   2895   2896*/ ///
-                       /*2898   2899*/+c2900 +c2920 +c2930/*2931   2933*/+c2940 ///
-                       /*2942   2946   2949*/+c2950/*2952   2954   2957   2959*/ ///
-                        +c2960 +c2970 +c2980 +c2990 +c3000/*3002   3004   3006*/ ///
-                       /*3008*/+c3010/*3012*/+c3020 +c3030 +c3050 +c3060 +c3070 ///
+local costs_F101    c1960 +c1970 +c1980 +c1990 -c2000 +c2010 +c2020 +c2030 ///
+                   -c2040 +c2240 -c2250 +c2260 -c2270 +c2280 +c2290 +c2300 ///
+                   +c2310 +c2360 +c2370 +c2380 +c2390 +c2400 +c2410 +c2420 ///
+                   +c2430 +c2440 +c2450 +c2640 +c2650 +c2670 +c2680 +c2690 ///
+                   +c2700 +c2710 +c2720 +c2730 +c2740 +c2750 +c2760 +c2770 ///
+                   +c2780 +c2790 +c2810 +c2820 +c2830 +c2840 +c2870 +c2880 ///
+                   +c2890 +c2900 +c2920 +c2930 +c2940 +c2950 +c2960 +c2970 ///
+                   +c2980 +c2990 +c3000 +c3010 +c3020 +c3030 +c3050 +c3060 ///
+                   +c3070 ///
                         +c3080 +c3100 +c3110/*3114   3116*/+c3120 +c3130 +c3140 ///
                         +c3150 +c3160 +c3170/*3171*/+c3180 +c3190 +c3200/*3202*/ ///
                         +c3210/*3212   3214*/+c3220/*3221   3222   3224   3225*/ ///
                        /*3227   3228*/+c3230/*3231   3232   3234   3237   3238*/ ///
                        /*3239*/+c3240 +c3250/*3254   3256   3261   3264   3266*/ ///
                        /*3268*/+c3270/*3271   3272   3274   3275   3277   3278*/ ///
-                        +c3280/*3281   3282   3284   3285   3286   3288   3289*/ ///
-                        +c3290 +c3300 +c3310 +c3320 +c3330 +c3340
-
-*Cost 2008-2012
-local costs_F101_13_14   c1960 +c1970 +c1980 +c1990 -c2000 +c2010 +c2020 +c2030 ///
-                        -c2040 +c2240 -c2250 +c2260 -c2270/*2272   2274*/+c2280 ///
-                        +c2290 +c2300 +c2310 +c2360 +c2370 +c2380 +c2390 +c2400 ///
-                        +c2410 +c2420 +c2430 +c2440 +c2450 +c2640 +c2650        ///
-                        +c2670 +c2680 +c2690 +c2700/*2701*/+c2710 +c2720 +c2730 ///
-                        +c2740 +c2750/*2752   2754*/+c2760 +c2770 +c2772 +c2774 ///
-                        +c2776 +c2778 +c2780/*2781   2783   2785   2786   2788*/ ///
-                       /*2789*/+c2790/*2792   2794   2797   2799   2801   2804*/ ///
-                       /*2805   2807   2808*/+c2810/*2811   2813   2815   2817*/ ///
-                       /*2819*/+c2820/*2821*/+c2830 +c2840 +c2870/*2871   2872*/ ///
-                       /*2874   2875   2877   2878*/+c2880/*2881   2882   2884*/ ///
-                       /*2886   2888   2889*/+c2890/*2892   2893   2895   2896*/ ///
-                       /*2886   2888   2889*/+c2890/*2892   2893   2895   2896*/ ///
-                       /*2898   2899*/+c2900 +c2920 +c2930/*2931   2933*/+c2940 ///
-                       /*2942   2946   2949*/+c2950/*2952   2954   2957   2959*/ ///
-                        +c2960 +c2970 +c2980 +c2990 +c3000/*3002   3004   3006*/ ///
-                       /*3008*/+c3010/*3012*/+c3020 +c3030 +c3050 +c3060 +c3070 ///
-                        +c3080 +c3100 +c3110 +c3114 +c3116 +c3120 +c3130 +c3140 ///
-                        +c3150 +c3160 +c3170/*3171*/+c3180 +c3190 +c3200/*3202*/ ///
-                        +c3210/*3212   3214*/+c3220/*3221   3222   3224   3225*/ ///
-                       /*3227   3228*/+c3230/*3231   3232   3234   3237   3238*/ ///
-                       /*3239*/+c3240 +c3250 +c3254 +c3256/*3261*/+c3264 +c3266 ///
-                        +c3268 +c3270/*3271   3272   3274   3275   3277   3278*/ ///
-                        +c3280/*3281   3282   3284   3285   3286   3288   3289*/ ///
-                        +c3290 +c3300 +c3310 +c3320 +c3330 +c3340
-
-local costs_F101_15_17   c1960 +c1970 +c1980 +c1990 -c2000 +c2010 +c2020 +c2030 ///
-                        -c2040 +c2240 -c2250 +c2260 -c2270 +c2272 +c2274 +c2280 ///
-                        +c2290 +c2300 +c2310 +c2360 +c2370 +c2380 +c2390 +c2400 ///
-                        +c2410/*2420*/+c2430 +c2440 +c2450 +c2640 +c2650        ///
-                       /*2670*/+c2680 +c2690 +c2700 +c2701/*2710*/+c2720 +c2730 ///
-                        +c2740 +c2750 +c2752 +c2754 +c2760 +c2770 +c2772 +c2774 ///
-                       /*2776   2778*/+c2780 +c2781 +c2783 +c2785 +c2786 +c2788 ///
-                        +c2789 +c2790 +c2792 +c2794 +c2797 +c2799 +c2801 +c2804 ///
-                        +c2805 +c2807 +c2808/*2810*/+c2811 +c2813 +c2815 +c2817 ///
-                        +c2819 +c2820 +c2821/*2830*/+c2840/*2870*/+c2871 +c2872 ///
-                        +c2874 +c2875 +c2877 +c2878/*2880*/+c2881 +c2882 +c2884 ///
-                        +c2886 +c2888 +c2889/*2890*/+c2892 +c2893 +c2895 +c2896 ///
-                        +c2898 +c2899/*2900   2920*/+c2930 +c2931 +c2933 /*2940*/ ///
-                        +c2942 +c2946 +c2949 +c2950 +c2952 +c2954 +c2957 +c2959 ///
-                       /*2960*/+c2970/*2980*/+c2990/*3000*/+c3002 +c3004 +c3006 ///
-                        +c3008 +c3010 +c3012/*3020*/+c3030 +c3050 +c3060 +c3070 ///
-                        +c3080/*3100   3110*/+c3114 +c3116 +c3120 +c3130 +c3140 ///
-                        +c3150 +c3160 +c3170 +c3171/*3180*/+c3190 +c3200 +c3202 ///
-                        +c3210 +c3212 +c3214 +c3220 +c3221 +c3222 +c3224 +c3225 ///
-                        +c3227 +c3228 +c3230 +c3231 +c3232 +c3234 +c3237 +c3238 ///
-                        +c3239 +c3240 +c3250 +c3254 +c3256 +c3261 +c3264/*3266*/ ///
-                       /*3268   3270*/+c3271 +c3272 +c3274 +c3275 +c3277 +c3278 ///
-                       /*3280*/+c3281 +c3282 +c3284 +c3285 +c3286 +c3288 +c3289 ///
-                       +c3290 +c3300 /*3310   3320   3330   3340*/
+                        +c3280 +c3290 +c3300 +c3310 +c3320 +c3330 +c3340
+ 
 
 ////////////////////////////////////////////////////////////////////////////////
 **#                     3 - GENERATE VARIABLES OUT OF CELLS

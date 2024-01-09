@@ -177,59 +177,59 @@ foreach year in 09 10 11 {
     use $pathCle/input/cleaning_intermediate/SS/IESS.dta, clear
     merge 1:1 year id_employer id_employee using $pathCle/input/cleaning_intermediate/SS/F107.dta, gen(source)
     
-    * Look at match only for overlapping years
-    tab source if year>=2009 & year<=2016
-    
-    * Count matched observations (exclude zeros and missings)
-    preserve
-        drop if missing(wage, wages_iess, salary_f107, wages_f107) | ///
-        wage==0 | wages_iess==0 | salary_f107==0 | wages_f107==0
-        assert source==3
-        
-        * Generate variable for F107 salary + bonus
-        gen sal_bon = salary_f107 + benefits_f107
-        
-        * Compare 'wage' and 'wage_iess' (should match often, in theory same source)
-        qui count if round(wage)==round(wages_iess) & !missing(wage) & !missing(wages_iess)
-        di as result "Share of matched observations where 'wage' == 'wage_iess': " round(r(N)/_N*100)
-        qui count if round(wage)>round(wages_iess) & !missing(wage) & !missing(wages_iess)
-        di as result "Share of matched observations where 'wage'  > 'wage_iess': " round(r(N)/_N*100)
-        qui count if round(wage)<round(wages_iess) & !missing(wage) & !missing(wages_iess)
-        di as result "Share of matched observations where 'wage'  < 'wage_iess': " round(r(N)/_N*100)
-        // ==> 39% are identical but 59% 'wage' > 'wage_iess', might imply that 'wage'
-        // sometimes includes additional compensations/wage components that are 
-        // not reported in 'wage_iess'
-
-        * Compare 'wage' and 'salary_f107'
-        qui count if round(wage)==round(salary_f107) & !missing(wage) & !missing(salary_f107)
-        di as result "Share of matched observations where 'wage' == 'salary_f107': " round(r(N)/_N*100)
-        qui count if round(wage)>round(salary_f107) & !missing(wage) & !missing(salary_f107)
-        di as result "Share of matched observations where 'wage'  > 'salary_f107': " round(r(N)/_N*100)
-        qui count if round(wage)<round(salary_f107) & !missing(wage) & !missing(salary_f107)
-        di as result "Share of matched observations where 'wage'  < 'salary_f107': " round(r(N)/_N*100)
-        // ==> 42% are identical, 32% 'wage' > 'salary_f107' and 27% 'wage' < 'salary_f107'. 
-        // This looks weird, roughly random whether wage' > or < 'salary_f107'
-        
-        * Compare 'wage' and 'sal_bon'
-        qui count if round(wage)==round(sal_bon) & !missing(wage) & !missing(sal_bon)
-        di as result "Share of matched observations where 'wage' == 'sal_bon': " round(r(N)/_N*100)
-        qui count if round(wage)>round(sal_bon) & !missing(wage) & !missing(sal_bon)
-        di as result "Share of matched observations where 'wage'  > 'sal_bon': " round(r(N)/_N*100)
-        qui count if round(wage)<round(sal_bon) & !missing(wage) & !missing(sal_bon)
-        di as result "Share of matched observations where 'wage'  < 'sal_bon': " round(r(N)/_N*100)
-        // ==> 36% are identical, 14% 'wage' > 'sal_bon' and 50% 'wage' < 'sal_bon'. 
-        // This looks weird, roughly random whether wage' > or < 'sal_bon'
-        
-        * Compare 'wage' and 'wages_f107'
-        qui count if round(wage)==round(wages_f107) & !missing(wage) & !missing(wages_f107)
-        di as result "Share of matched observations where 'wage' == 'wages_f107': " round(r(N)/_N*100)
-        qui count if round(wage)>round(wages_f107) & !missing(wage) & !missing(wages_f107)
-        di as result "Share of matched observations where 'wage'  > 'wages_f107': " round(r(N)/_N*100)
-        qui count if round(wage)<round(wages_f107) & !missing(wage) & !missing(wages_f107)
-        di as result "Share of matched observations where 'wage'  < 'wages_f107': " round(r(N)/_N*100)
-        // ==> Now 88% 'wage' < 'wages_f107', clearly 'wage' does not include
-        // additional compensations
-    restore
+//     * Look at match only for overlapping years
+//     tab source if year>=2009 & year<=2016
+//    
+//     * Count matched observations (exclude zeros and missings)
+//     preserve
+//         drop if missing(wage, wages_iess, salary_f107, wages_f107) | ///
+//         wage==0 | wages_iess==0 | salary_f107==0 | wages_f107==0
+//         assert source==3
+//        
+//         * Generate variable for F107 salary + bonus
+//         gen sal_bon = salary_f107 + benefits_f107
+//        
+//         * Compare 'wage' and 'wage_iess' (should match often, in theory same source)
+//         qui count if round(wage)==round(wages_iess) & !missing(wage) & !missing(wages_iess)
+//         di as result "Share of matched observations where 'wage' == 'wage_iess': " round(r(N)/_N*100)
+//         qui count if round(wage)>round(wages_iess) & !missing(wage) & !missing(wages_iess)
+//         di as result "Share of matched observations where 'wage'  > 'wage_iess': " round(r(N)/_N*100)
+//         qui count if round(wage)<round(wages_iess) & !missing(wage) & !missing(wages_iess)
+//         di as result "Share of matched observations where 'wage'  < 'wage_iess': " round(r(N)/_N*100)
+//         // ==> 39% are identical but 59% 'wage' > 'wage_iess', might imply that 'wage'
+//         // sometimes includes additional compensations/wage components that are 
+//         // not reported in 'wage_iess'
+//
+//         * Compare 'wage' and 'salary_f107'
+//         qui count if round(wage)==round(salary_f107) & !missing(wage) & !missing(salary_f107)
+//         di as result "Share of matched observations where 'wage' == 'salary_f107': " round(r(N)/_N*100)
+//         qui count if round(wage)>round(salary_f107) & !missing(wage) & !missing(salary_f107)
+//         di as result "Share of matched observations where 'wage'  > 'salary_f107': " round(r(N)/_N*100)
+//         qui count if round(wage)<round(salary_f107) & !missing(wage) & !missing(salary_f107)
+//         di as result "Share of matched observations where 'wage'  < 'salary_f107': " round(r(N)/_N*100)
+//         // ==> 42% are identical, 32% 'wage' > 'salary_f107' and 27% 'wage' < 'salary_f107'. 
+//         // This looks weird, roughly random whether wage' > or < 'salary_f107'
+//        
+//         * Compare 'wage' and 'sal_bon'
+//         qui count if round(wage)==round(sal_bon) & !missing(wage) & !missing(sal_bon)
+//         di as result "Share of matched observations where 'wage' == 'sal_bon': " round(r(N)/_N*100)
+//         qui count if round(wage)>round(sal_bon) & !missing(wage) & !missing(sal_bon)
+//         di as result "Share of matched observations where 'wage'  > 'sal_bon': " round(r(N)/_N*100)
+//         qui count if round(wage)<round(sal_bon) & !missing(wage) & !missing(sal_bon)
+//         di as result "Share of matched observations where 'wage'  < 'sal_bon': " round(r(N)/_N*100)
+//         // ==> 36% are identical, 14% 'wage' > 'sal_bon' and 50% 'wage' < 'sal_bon'. 
+//         // This looks weird, roughly random whether wage' > or < 'sal_bon'
+//        
+//         * Compare 'wage' and 'wages_f107'
+//         qui count if round(wage)==round(wages_f107) & !missing(wage) & !missing(wages_f107)
+//         di as result "Share of matched observations where 'wage' == 'wages_f107': " round(r(N)/_N*100)
+//         qui count if round(wage)>round(wages_f107) & !missing(wage) & !missing(wages_f107)
+//         di as result "Share of matched observations where 'wage'  > 'wages_f107': " round(r(N)/_N*100)
+//         qui count if round(wage)<round(wages_f107) & !missing(wage) & !missing(wages_f107)
+//         di as result "Share of matched observations where 'wage'  < 'wages_f107': " round(r(N)/_N*100)
+//         // ==> Now 88% 'wage' < 'wages_f107', clearly 'wage' does not include
+//         // additional compensations
+//     restore
     
     * First of all let's again set wages to 0 if they are less/equal than 1 dollar, 
     * to avoid problems later (for the final variables)
@@ -256,52 +256,62 @@ foreach year in 09 10 11 {
     replace final_wage = wages_f107 + wages_iess if missing(final_wage) & salary_f107==0
     
     * For the remaining informations we have to simply rely on the wage information 
-    * of the less reliable data source which also doesn't include benefits.
+    * of the less reliable data source which also seems to be consistently lower.
     assert source==1 if missing(final_wage)
     
-    * Thus, we compute ratios of 'final_wage' to 'wage' when both are available 
-    * (the cases we matched from both sources) and inspect
-    gen benefits_multiplier = final_wage/wage
-    sum benefits_multiplier, d // median: 1.121514, mean 1.369555
+    * Construct a different version of adjusted wages (using a multiplier)
+    gen final_wage_adj = final_wage
+        * Thus, we compute ratios of 'final_wage' to 'wage' when both are available 
+        * (the cases we matched from both sources) and inspect
+        gen benefits_multiplier = final_wage_adj/wage
+        sum benefits_multiplier, d // median: 1.121514, mean 1.369555
+       
+        * I will compute median multipliers for each id_employer and match
+        preserve
+            collapse (median) benefits_multiplier, by(id_employer)
+            tempfile benefits_multiplier
+            save `benefits_multiplier', replace
+        restore
+       
+        * Merge with ratios
+        drop benefits_multiplier
+        merge m:1 id_employer using `benefits_multiplier', nogen assert (master match)
+        sum benefits_multiplier, d // median: 1.18193, mean 1.195473
+        replace benefits_multiplier = 1 if benefits_multiplier<1 & !missing(benefits_multiplier) // lower cap at 1 (affects ~1% of obs) ### MVV: review, now much more than 1% of obs
+        replace benefits_multiplier = 2 if benefits_multiplier>2 & !missing(benefits_multiplier) // upper cap at 2 (affects ~1% of obs)
+        sum benefits_multiplier, d // median: 1.18193, mean 1.195473
+       
+        * As expected, most observations that can be "fixed" are from years where 
+        * we don't have the most reliable source (2007, 2008, 2017)
+        tab year if missing(final_wage_adj) & !missing(benefits_multiplier)
+       
+        * Assign missing 'final_wage' as 'wage' times 'benefits_multiplier' when available
+        replace final_wage_adj = wage * benefits_multiplier if missing(final_wage_adj)
+       
+        * For the employers for which we don't have a 'benefits_multiplier' we use
+        * the median one # MVV: should also count on how many observations the multiplier is constructed and also used median when this number very low (unreliable!)
+        qui sum benefits_multiplier, d
+        replace final_wage_adj = wage * `r(p50)' if missing(final_wage_adj)
     
-    * I will compute median multipliers for each id_employer and match
-    preserve
-        collapse (median) benefits_multiplier, by(id_employer)
-        tempfile benefits_multiplier
-        save `benefits_multiplier', replace
-    restore
-    
-    * Merge with ratios
-    drop benefits_multiplier
-    merge m:1 id_employer using `benefits_multiplier', nogen assert (master match)
-    sum benefits_multiplier, d // median: 1.18193, mean 1.195473
-    replace benefits_multiplier = 1 if benefits_multiplier<1 & !missing(benefits_multiplier) // lower cap at 1 (affects ~1% of obs) ### MVV: review, now much more than 1% of obs
-    replace benefits_multiplier = 2 if benefits_multiplier>2 & !missing(benefits_multiplier) // upper cap at 2 (affects ~1% of obs)
-    sum benefits_multiplier, d // median: 1.18193, mean 1.195473
-    
-    * As expected, most observations that can be "fixed" are from years where 
-    * we don't have the most reliable source (2007, 2008, 2017)
-    tab year if missing(final_wage) & !missing(benefits_multiplier)
-    
-    * Assign missing 'final_wage' as 'wage' times 'benefits_multiplier' when available
-    replace final_wage = wage * benefits_multiplier if missing(final_wage)
-    
-    * For the employers for which we don't have a 'benefits_multiplier' we use
-    * the median one # MVV: should also count on how many observations the multiplier is constructed and also used median when this number very low (unreliable!)
-    qui sum benefits_multiplier, d
-    replace final_wage = wage * `r(p50)' if missing(final_wage)
+    * But also fill the "standard" final wage without doing adjustments
+    replace final_wage = wage if missing(final_wage)
     
     * Keep only final wage
-    assert !missing(final_wage)
-    assert final_wage!=0
+    assert !missing(final_wage) & !missing(final_wage_adj)
+    assert final_wage!=0 & final_wage_adj!=0
     isid year id_employer id_employee
     
     * Collapse at employer year level
-    gcollapse (sum) wages = final_wage, by(year id_employer)
+    gcollapse (sum) wages = final_wage wages_adj = final_wage_adj, by(year id_employer)
     rename id_employer id_sri
     
     * Round and save
-    replace wages = round(wages)  // # MVV Note that if I cap multiplier at lower than 1 above (e.g. 0.75) I might create new wages below $1 which need to be dropped here
+//     replace wages = round(wages)  // # MVV Note that if I cap multiplier at lower than 1 above (e.g. 0.75) I might create new wages below $1 which need to be dropped here
+//     replace wages_adj = round(wages_adj)  // # MVV Note that if I cap multiplier at lower than 1 above (e.g. 0.75) I might create new wages below $1 which need to be dropped here
+    
+    drop if round(wages) <=0
+    drop if round(wages_adj) <=0
+    
     compress
     export delimited $pathCle/output/wage_bills.csv, replace
 
