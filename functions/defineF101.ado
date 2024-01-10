@@ -25,8 +25,6 @@ program define defineF101, rclass
 ////////////////////////////////////////////////////////////////////////////////
 **#                             1 - LABEL FORM CELLS
 ////////////////////////////////////////////////////////////////////////////////
-use "/home/mivazq/data/transactions_ecuador/1_rawdata/F101/F101_2008_jul2012.dta" , clear
-order c*, seq
 
 *** TRANSACTIONS WITH RELATED PARTIES ABROAD DURING THE FISCAL PERIOD
 cap lab var c110  "RECORD"
@@ -95,13 +93,13 @@ drop c340 c350           // considered in c330
 drop c430 c440 c450      // considered in c420
 
 * Store final sums (reported and calculated) and drop not needed remaining cells
-gen double tot_CA_prov = cond(c310>0, -c310, c310)
+gen double tot_CA_prov = cond(c310>0, -c310, c310) // in case they get reported with minus
 gen double tot_CA      = c470
 gen double tot_CA_calc = c170 + c180 + c190 + c280 + c290 + c300 + c320 + c330 + c360 + c370 + c380 + c390 + c400 + c410 + c420 + c460 + tot_CA_prov
-format %20.0g tot_*
+format %20.2f tot_*
 lab var tot_CA      "(=) TOTAL CURRENT ASSETS - REPORTED"
 lab var tot_CA_calc "(=) TOTAL CURRENT ASSETS - CALCULATED"
-lab var tot_CA_prov "(-) TOTAL CURRENT ASSETS PROVISIONS"
+lab var tot_CA_prov "(-) PROVISIONS ON TOTAL CURRENT ASSETS"
 drop c170 c180 c190 c280 c290 c300 c310 c320 c330 c360 c370 c380 c390 c400 c410 c420 c460 c470
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -145,25 +143,24 @@ drop c600 c620 // these sums are redundant as they'll be included in another way
 replace c510 = cond(c630!=0 | c640!=0, c630 + c640, c510) // keep sum if singles are zero
 replace c520 = cond(c500!=0 | c510!=0, c500 + c510, c520) // keep sum if singles are zero
 replace c530 = cond(c480!=0 | c520!=0, c480 + c520, c530) // keep sum if singles are zero
-// replace c600 = cond(c480!=0 | c630!=0, c480 + c630, c600) // keep sum if singles are zero    MVV: dropped above
-// replace c620 = cond(c500!=0 | c640!=0, c500 + c640, c620) // keep sum if singles are zero    MVV: dropped above
 replace c570 = cond(c580!=0 | c660!=0 | c670!=0, c580 + c660 + c670, c570)
-drop c630 c640            // considered in c510
-drop c480 c500 c510 c520  // considered in c530 (directly or indirectly)
-drop c580 c660 c670       // all these depreciations have been summed up
+drop c630 c640      // considered in c510
+drop c500 c510      // considered in c520
+drop c480 c520      // considered in c530
+drop c580 c660 c670 // all these depreciations have been summed up
 
 * Fix totals (firms have reported differently)
 recast double c680-c720
 replace c680 = cond(c720==0, c690, c690-c720) if c680==0 // replace with diff total - intangible when tangible is 0
 
 * Store final sums (reported and calculated) and drop not needed remaining cells
-gen double tot_FA_acc_dep = cond(c570>0, -c570, c570)
+gen double tot_FA_acdp = cond(c570>0, -c570, c570) // in case they get reported with minus
 gen double tot_FA      = c680
-gen double tot_FA_calc = c490 + c530 + c540 + c550 + c560 + c590 + c650 + tot_FA_acc_dep
-format %20.0g tot_*
-lab var tot_FA         "(=) TOTAL FIXED ASSETS - REPORTED"
-lab var tot_FA_calc    "(=) TOTAL FIXED ASSETS - CALCULATED"
-lab var tot_FA_acc_dep "(-) TOTAL FIXED ASSETS ACCUMULATED DEPRECIATION"
+gen double tot_FA_calc = c490 + c530 + c540 + c550 + c560 + c590 + c650 + tot_FA_acdp
+format %20.2f tot_*
+lab var tot_FA      "(=) TOTAL FIXED ASSETS - REPORTED"
+lab var tot_FA_calc "(=) TOTAL FIXED ASSETS - CALCULATED"
+lab var tot_FA_acdp "(-) ACCUMULATED DEPRECIATION ON TOTAL FIXED ASSETS"
 drop c490 c530 c540 c550 c560 c570 c590 c650 c680 c690
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -192,13 +189,13 @@ replace c770 = cond(c710!=c770, c770 + c710, c770)
 drop c710
 
 * Store final sums (reported and calculated) and drop not needed remaining cells
-gen double tot_DA_acc_dep = cond(c770>0, -c770, c770)
-gen double tot_DA         = c780
-gen double tot_DA_calc    = c700 + c730 + c740 + c750 + c760 - c770
-format %20.0g tot_*
-lab var tot_DA         "(=) TOTAL DEFERRED ASSETS - REPORTED"
-lab var tot_DA_calc    "(=) TOTAL DEFERRED ASSETS - CALCULATED"
-lab var tot_DA_acc_dep "(-) TOTAL DEFERRED ASSETS ACCUMULATED DEPRECIATION"
+gen double tot_DA_acdp = cond(c770>0, -c770, c770) // in case they get reported with minus
+gen double tot_DA      = c780
+gen double tot_DA_calc = c700 + c730 + c740 + c750 + c760 + tot_DA_acdp
+format %20.2f tot_*
+lab var tot_DA      "(=) TOTAL DEFERRED ASSETS - REPORTED"
+lab var tot_DA_calc "(=) TOTAL DEFERRED ASSETS - CALCULATED"
+lab var tot_DA_acdp "(-) ACCUMULATED DEPRECIATION ON TOTAL DEFERRED ASSETS"
 drop c700 c730 c740 c750 c760 c770 c780
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -210,134 +207,183 @@ cap lab var c810  "(+) LONG TERM ACCOUNTS RECEIVABLE FROM NATURAL FIRMS OR PERSO
 cap lab var c820  "(+) LONG TERM ACCOUNTS RECEIVABLE FROM NATURAL FIRMS OR PERSONS - RELATED ABROAD"
 cap lab var c830  "(+) LONG TERM ACCOUNTS RECEIVABLE FROM NATURAL FIRMS OR PERSONS - NOT RELATED HOME"
 cap lab var c840  "(+) LONG TERM ACCOUNTS RECEIVABLE FROM NATURAL FIRMS OR PERSONS - NOT RELATED ABROAD"
-cap lab var c850  "(=) LONG TERM ACCOUNTS RECEIVABLE FROM NATURAL FIRMS OR PERSONS" // c810 + c820 + c830 + c840
+cap lab var c850  "(=) LONG TERM ACCOUNTS RECEIVABLE FROM NATURAL FIRMS OR PERSONS" // c790 + c800 + c810 + c820 + c830 + c840
 cap lab var c860  "(+) OTHER LONG TERM ACCOUNTS RECEIVABLE - RELATED HOME"
 cap lab var c870  "(+) OTHER LONG TERM ACCOUNTS RECEIVABLE - RELATED ABROAD"
 cap lab var c880  "(+) OTHER LONG TERM ACCOUNTS RECEIVABLE - NOT RELATED HOME"
 cap lab var c890  "(+) OTHER LONG TERM ACCOUNTS RECEIVABLE - NOT RELATED ABROAD"
 cap lab var c900  "(=) OTHER LONG TERM ACCOUNTS RECEIVABLE"  // c860 + c870 + c880 + c890
 cap lab var c910  "(-) PROVISION FOR UNCOLLECTIBLE ACCOUNTS"
+cap lab var c920  "(+) OTHER LONG TERM COSTS PAYED IN ADVANCE"
 cap lab var c1010 "(+) OTHER LONG TERM ASSETS"
 cap lab var c1070 "(=) TOTAL LONG TERM ASSETS"                                  // Total
 
+* Old
+gen double tot_LA_calc_old = c790 + c800 + c810 + c820 + c830 + c840 + c860 + c870 + c880 + c890 - c910 + c1010
+
 * Regenerate sum variables to use instead of single cells (seems to work better)
+* Firms seem to have filed the form weirdly (no surprise). So to get things right
+* I'll first sum up "OTHER LONG TERM ACCOUNTS RECEIVABLE" and then combine the 
+* the rest together. In fact, many people summed up ALL accounts in c850 and not
+* only c790 + c800 + c810 + c820 + c830 + c840
 recast double c790-c1070
-
-replace c850 = cond(c810!=0 | c820!=0 | c830!=0 | c840!=0, c810 + c820 + c830 + c840, c850) // keep sum if singles are zero
 replace c900 = cond(c860!=0 | c870!=0 | c880!=0 | c890!=0, c860 + c870 + c880 + c890, c890) // keep sum if singles are zero
-drop c810 c820 c830 c840 // considered in c850
-drop c860 c870 c880 c840 // considered in c900
+drop c860 c870 c880 c890 // considered in c900
+gen c850_new = cond(c790!=0 | c800!=0 | c810!=0 | c820!=0 | c830!=0 | c840!=0, c790 + c800 + c810 + c820 + c830 + c840, c850) // keep sum if singles are zero
+drop c790 c800 c810 c820 c830 c840 c850 // considered in c850
 
+* This next line assumes that if c850_new and c900 are the same value it must be
+* that they reported c900 already in c850. It would be a big coincidence for it 
+* to be exactly the same and not be the case of double reporting. If they are 
+* different instead, we sum them up because people would not report c900 and then
+* also include those values within c850.
+gen double lt_assets = cond(round(c850_new)!=round(c900), c850_new + c900, c850_new)
 
+* Store final sums (reported and calculated) and drop not needed remaining cells
+gen double tot_LA_prov = cond(c910>0, -c910, c910) // in case they get reported with minus
+gen double tot_LA      = c1070
+gen double tot_LA_calc = lt_assets + c920 + c1010 + tot_LA_prov
+format %20.2f tot_*
+lab var tot_LA      "(=) TOTAL LONG TERM ASSETS - REPORTED"
+lab var tot_LA_calc "(=) TOTAL LONG TERM ASSETS - CALCULATED"
+lab var tot_LA_prov "(-) PROVISIONS ON TOTAL LONG TERM ASSETS"
+drop c850_new c900 c910 c920 c1010 c1070 lt_assets
 
-
-gen same = round(tot_DA,0.01)==round(tot_DA_calc_old,0.01)
-gen same_new = round(tot_DA,0.01)==round(tot_DA_calc,0.01)
-
-tab same same_new
-
-
-
-
-
-* Check for negatives
-forval i=70/80 {
-    local n = `i'*10
-    di "c`n'"
-    count if c`n'<0
-}
-
-
-
-
-
-
-
+////////////////////////////////////////////////////////////////////////////////
 
 * TOTAL ASSETS
+cap lab var c1050 "( ) CONTINGENT ASSETS"
 cap lab var c1075 "( ) ASSETS COMING FROM REINVESTMENT OF PROFITS"
 cap lab var c1080 "(=) TOTAL ASSETS" // (c470+c690+c780+c1070)
+drop c1050 c1075
+
+* Create new sums
+gen double tot_A = c1080
+gen double tot_A_calc = tot_CA_calc + tot_FA_calc + tot_DA_calc + tot_LA_calc
+gen double tot_A_calc_non_neg = cond(tot_CA_calc>0, tot_CA_calc, 0) + ///
+                                cond(tot_FA_calc>0, tot_FA_calc, 0) + ///
+                                cond(tot_DA_calc>0, tot_DA_calc, 0) + ///
+                                cond(tot_LA_calc>0, tot_LA_calc, 0)
+format %20.2f tot_*
+lab var tot_A              "(=) TOTAL ASSETS - REPORTED"
+lab var tot_A_calc         "(=) TOTAL ASSETS - CALCULATED"
+lab var tot_A_calc_non_neg "(=) TOTAL ASSETS - CALCULATED (negative totals converted to 0)"
+assert tot_A_calc_non_neg>=0
+drop c1080
+
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+
+// *** BALANCE SHEET - LIABILITIES & EQUITIES
+// * OUT OF CATEGORY? (unsure whether +/= from c960 onwards)
+// cap lab var c930  "(+) OBLIGATIONS FROM TAX AUTHORITIES"
+// cap lab var c940  "(+) OBLIGATIONS FROM IESS"
+// cap lab var c950  "(+) OBLIGATIONS FROM EMPLOYEES"
+// cap lab var c960  "(=) TOTAL OBLIGATIONS FROM IESS, EMPLOYEES, AND TAX AUTHORITIES"
+// cap lab var c970  "(+) OTHER CURRENT LIABILITIES"
+// cap lab var c980  "(+) MORTGAGES"
+// cap lab var c990  "(+) EMITTED OBLIGATIONS ACQUIRED - RELATED"
+// cap lab var c1000 "(+) EMITTED OBLIGATIONS ACQUIRED - NOT RELATED"
+// cap lab var c1020 "(+) OTHER LONG TERM LIABILITIES"
+// cap lab var c1030 "(+) OTHER DEFERRED LIABILITIES"
+// cap lab var c1040 "(+) OTHER LIABILITIES"
+// cap lab var c1090 "(+) REVENUES RECEIVED IN ADVANCE"
+// cap lab var c1100 "(+) CLIENT PAYMENTS RECEIVED IN ADVANCE"
+//
+// * CURRENT LIABILITIES
+// cap lab var c1110 "(+) CURRENT ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS - RELATED HOME"
+// cap lab var c1120 "(+) CURRENT ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS - RELATED ABROAD"
+// cap lab var c1130 "(+) CURRENT ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS - NOT RELATED HOME"
+// cap lab var c1140 "(+) CURRENT ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS - NOT RELATED ABROAD"
+// cap lab var c1150 "(=) TOTAL CURRENT ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS" // c1110 + c1120 + c1130 + c1140
+// cap lab var c1160 "(=) TOTAL CURRENT ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS - HOME" // c1110 + c1130
+// cap lab var c1170 "(=) TOTAL CURRENT ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS - ABROAD" // c1120 + c1140
+// cap lab var c1180 "(+) CURRENT OBLIGATIONS WITH FINANCIAL INSTITUTIONS - HOME"
+// cap lab var c1190 "(+) CURRENT OBLIGATIONS WITH FINANCIAL INSTITUTIONS - ABROAD"
+// cap lab var c1200 "(+) CURRENT LOANS FROM SHAREHOLDERS - HOME"
+// cap lab var c1210 "(+) CURRENT LOANS FROM SHAREHOLDERS - ABROAD"
+// cap lab var c1220 "(=) TOTAL CURRENT OBLIGATIONS WITH FINANCIAL INSTITUTIONS" // c1180 + c1190
+// cap lab var c1230 "(=) TOTAL CURRENT LOANS FROM SHAREHOLDERS" // c1200 + c1210
+// cap lab var c1240 "(+) OTHER CURRENT ACCOUNTS AND NOTES PAYABLE - RELATED HOME"
+// cap lab var c1250 "(+) OTHER CURRENT ACCOUNTS AND NOTES PAYABLE - RELATED ABROAD"
+// cap lab var c1260 "(+) OTHER CURRENT ACCOUNTS AND NOTES PAYABLE - NOT RELATED HOME"
+// cap lab var c1270 "(+) OTHER CURRENT ACCOUNTS AND NOTES PAYABLE - NOT RELATED ABROAD"
+// cap lab var c1280 "(+) INCOME TAX TO BE PAID IN FISCAL PERIOD"
+// cap lab var c1290 "(+) WORKERS' PROFITS TO BE PAID IN FISCAL PERIOD"
+// cap lab var c1300 "(+) TRANSFERS TO THE HEAD OFFICE AND BRANCHES (OVERSEAS)" 
+// cap lab var c1310 "(+) CURRENT CREDITO A MUTUO"
+// cap lab var c1320 "(+) SHORT TERM OBLIGATIONS ISSUED"
+// cap lab var c1330 "(+) OTHER PROVISIONS"
+// cap lab var c1340 "(=) TOTAL CURRENT LIABILITIES"                               // Total
+//
+// * LONG TERM LIABILITIES
+// cap lab var c1350 "(+) LONG TERM ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS - RELATED - HOME"
+// cap lab var c1360 "(+) LONG TERM ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS - RELATED - ABROAD"
+// cap lab var c1370 "(+) LONG TERM ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS - NOT RELATED - HOME"
+// cap lab var c1380 "(+) LONG TERM ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS - NOT RELATED - ABROAD"
+// cap lab var c1390 "(=) TOTAL LONG TERM ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS" // c1350 + c1360 + c1370 + c1380
+// cap lab var c1400 "(=) TOTAL LONG TERM ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS - HOME" // c1350 + c1370
+// cap lab var c1410 "(=) TOTAL LONG TERM ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS - ABROAD" // c1360 + c1380
+// cap lab var c1420 "(+) LONG TERM OBLIGATIONS TO FINANCIAL INSTITUTIONS - HOME"
+// cap lab var c1430 "(+) LONG TERM OBLIGATIONS TO FINANCIAL INSTITUTIONS - ABROAD"
+// cap lab var c1440 "(=) TOTAL LONG TERM OBLIGATIONS WITH FINANCIAL INSTITUTIONS" // c1420 + c1430
+// cap lab var c1450 "(+) LONG TERM LOANS FROM SHAREHOLDERS - HOME"
+// cap lab var c1460 "(+) LONG TERM LOANS FROM SHAREHOLDERS - ABROAD"
+// cap lab var c1470 "(=) TOTAL LONG TERM LOANS FROM SHAREHOLDERS" // c1450 + c1460
+// cap lab var c1480 "(+) OTHER LONG TERM ACCOUNTS AND NOTES PAYABLE - RELATED HOME"
+// cap lab var c1490 "(+) OTHER LONG TERM ACCOUNTS AND NOTES PAYABLE - RELATED ABROAD"
+// cap lab var c1500 "(+) OTHER LONG TERM ACCOUNTS AND NOTES PAYABLE - NOT RELATED HOME"
+// cap lab var c1510 "(+) OTHER LONG TERM ACCOUNTS AND NOTES PAYABLE - NOT RELATED ABROAD"
+// cap lab var c1520 "(=) TOTAL OTHER LONG TERM ACCOUNTS AND NOTES PAYABLE" // c1480 + c1490 + c1500 + c1510
+// cap lab var c1530 "(+) LONG TERM TRANSFERS TO THE HEAD OFFICE AND BRANCHES (OVERSEAS)"
+// cap lab var c1540 "(+) LONG TERM CREDITO A MUTUO"
+// cap lab var c1550 "(+) LONG TERM OBLIGATIONS ISSUED"
+// cap lab var c1560 "(+) PROVISIONS FOR RETIREMENT"
+// cap lab var c1570 "(+) PROVISIONS FOR LAYOFFS"
+// cap lab var c1580 "(+) OTHER PROVISIONS (WITH TERMS >1 YEAR)"
+// cap lab var c1590 "(=) TOTAL LONG TERM LIABILITIES"                             // Total
+//
+// * TOTAL LIABILITIES
+// cap lab var c1060 "( ) CONTINGENT LIABILITIES"
+// cap lab var c1600 "(+) DEFFERED LIABILITIES"                                    // "Total"
+// cap lab var c1610 "(+) OTHER LIABILITIES"                                       // "Total"
+// cap lab var c1620 "(=) TOTAL LIABILITIES" // (c1340+c1590+c1600+c1610)          // Liability Total
+//
+// * EQUITIES
+// cap lab var c1630 "(+) SUBSCRIBED AND/OR ISSUED CAPITAL"
+// cap lab var c1640 "(-) SUBSCRIBED CAPITAL UNPAID, TREASURY SHARES"
+// cap lab var c1650 "(+) CAPITAL CONTRIBUTIONS BY SHAREHOLDERS OR PARTNERS"
+// cap lab var c1660 "(+) LEGAL RESERVE"
+// cap lab var c1670 "(+) FACULTATIVE STATUTORY RESERVE"
+// cap lab var c1680 "(+) CAPITAL RESERVE"
+// cap lab var c1690 "(+) FACULTATIVE STATUTORY RESERVE"
+// cap lab var c1700 "(+) OTHER SUPERAVITS"
+// cap lab var c1710 "(+) VALUATION/DONATIONS/OTHER RESERVE"
+// cap lab var c1720 "(+) OTHER RESERVES"
+// cap lab var c1730 "(=) TOTAL RESERVES" // ? Don't which which are summed
+// cap lab var c1740 "(+) PROFIT NOT DISTRIBUTED (REINVESTED) IN PREVIOUS PERIODS"
+// cap lab var c1750 "(-) ACCUMULATED LOSS FROM PREVIOUS PERIODS"
+// cap lab var c1760 "(+) NET INCOME (NET OF EMPLOYEE SHARES AND INCOME TAX)"
+// cap lab var c1770 "(-) LOSS FOR THE PERIOD"
+//
+// * TOTAL EQUITIES
+// cap lab var c1780 "(=) TOTAL EQUITY"                                            // Total
+//
+// * TOTAL LIABILITIES
+// cap lab var c1790 "(=) TOTAL LIABILITIES AND EQUITY" // (c1620+c1780)
+
+
+* We don't need liabilities and equity at all. Drop them all.
+drop c930-c1790
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-*** BALANCE SHEET - LIABILITIES & EQUITIES
-* CURRENT LIABILITIES
-cap lab var c1110 "(+) ACCOUNTS AND NOTES PAYABLE TO CURRENT SUPPLIERS - RELATED HOME"
-cap lab var c1120 "(+) ACCOUNTS AND NOTES PAYABLE TO CURRENT SUPPLIERS - RELATED ABROAD"
-cap lab var c1130 "(+) ACCOUNTS AND NOTES PAYABLE TO CURRENT SUPPLIERS - NOT RELATED HOME"
-cap lab var c1140 "(+) ACCOUNTS AND NOTES PAYABLE TO CURRENT SUPPLIERS - NOT RELATED ABROAD"
-cap lab var c1180 "(+) CURRENT OBLIGATIONS WITH FINANCIAL INSTITUTIONS - HOME"
-cap lab var c1190 "(+) CURRENT OBLIGATIONS WITH FINANCIAL INSTITUTIONS - ABROAD"
-cap lab var c1200 "(+) CURRENT LOANS FROM SHAREHOLDERS - HOME"
-cap lab var c1210 "(+) CURRENT LOANS FROM SHAREHOLDERS - ABROAD"
-cap lab var c1240 "(+) OTHER CURRENT ACCOUNTS AND NOTES PAYABLE - RELATED HOME"
-cap lab var c1250 "(+) OTHER CURRENT ACCOUNTS AND NOTES PAYABLE - RELATED ABROAD"
-cap lab var c1260 "(+) OTHER CURRENT ACCOUNTS AND NOTES PAYABLE - NOT RELATED HOME"
-cap lab var c1270 "(+) OTHER CURRENT ACCOUNTS AND NOTES PAYABLE - NOT RELATED ABROAD"
-cap lab var c1280 "(+) INCOME TAX TO BE PAID IN FISCAL PERIOD"
-cap lab var c1290 "(+) WORKERS' PROFITS TO BE PAID IN FISCAL PERIOD"
-cap lab var c1300 "(+) TRANSFERS TO THE HEAD OFFICE AND BRANCHES (OVERSEAS)" 
-cap lab var c1310 "(+) CURRENT CREDITO A MUTUO"
-cap lab var c1320 "(+) SHORT TERM OBLIGATIONS ISSUED"
-cap lab var c1330 "(+) OTHER PROVISIONS"
-cap lab var c1340 "(=) TOTAL CURRENT LIABILITIES"                               // Total
-
-* LONG TERM LIABILITIES
-cap lab var c1350 "(+) LONG TERM ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS - RELATED - HOME"
-cap lab var c1360 "(+) LONG TERM ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS - RELATED - ABROAD"
-cap lab var c1370 "(+) LONG TERM ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS - NOT RELATED - HOME"
-cap lab var c1380 "(+) LONG TERM ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS - NOT RELATED - ABROAD"
-cap lab var c1420 "(+) LONG TERM OBLIGATIONS TO FINANCIAL INSTITUTIONS - HOME"
-cap lab var c1430 "(+) LONG TERM OBLIGATIONS TO FINANCIAL INSTITUTIONS - ABROAD"
-cap lab var c1450 "(+) LONG TERM LOANS FROM SHAREHOLDERS - HOME"
-cap lab var c1460 "(+) LONG TERM LOANS FROM SHAREHOLDERS - ABROAD"
-cap lab var c1480 "(+) OTHER LONG TERM ACCOUNTS AND NOTES PAYABLE - RELATED HOME"
-cap lab var c1490 "(+) OTHER LONG TERM ACCOUNTS AND NOTES PAYABLE - RELATED ABROAD"
-cap lab var c1500 "(+) OTHER LONG TERM ACCOUNTS AND NOTES PAYABLE - NOT RELATED HOME"
-cap lab var c1510 "(+) OTHER LONG TERM ACCOUNTS AND NOTES PAYABLE - NOT RELATED ABROAD"
-cap lab var c1530 "(+) LONG TERM TRANSFERS TO THE HEAD OFFICE AND BRANCHES (OVERSEAS)"
-cap lab var c1540 "(+) LONG TERM CREDITO A MUTUO"
-cap lab var c1550 "(+) LONG TERM OBLIGATIONS ISSUED"
-cap lab var c1560 "(+) PROVISIONS FOR RETIREMENT"
-cap lab var c1570 "(+) PROVISIONS FOR LAYOFFS"
-cap lab var c1580 "(+) OTHER PROVISIONS (WITH TERMS >1 YEAR)"
-cap lab var c1590 "(=) TOTAL LONG TERM LIABILITIES"                             // Total
-
-* TOTAL LIABILITIES
-cap lab var c1600 "(+) DEFFERED LIABILITIES"                                    // "Total"
-cap lab var c1610 "(+) OTHER LIABILITIES"                                       // "Total"
-cap lab var c1620 "(=) TOTAL LIABILITIES" // (c1340+c1590+c1600+c1610)          // Liability Total
-
-* EQUITIES
-cap lab var c1630 "(+) SUBSCRIBED AND/OR ISSUED CAPITAL"
-cap lab var c1640 "(-) SUBSCRIBED CAPITAL UNPAID, TREASURY SHARES"
-cap lab var c1650 "(+) CAPITAL CONTRIBUTIONS BY SHAREHOLDERS OR PARTNERS"
-cap lab var c1660 "(+) LEGAL RESERVE"
-cap lab var c1720 "(+) OTHER RESERVES"
-cap lab var c1740 "(+) PROFIT NOT DISTRIBUTED (REINVESTED) IN PREVIOUS PERIODS"
-cap lab var c1750 "(-) ACCUMULATED LOSS FROM PREVIOUS PERIODS"
-cap lab var c1760 "(+) NET INCOME (NET OF EMPLOYEE SHARES AND INCOME TAX)"
-cap lab var c1770 "(-) LOSS FOR THE PERIOD"
-
-* TOTAL EQUITIES
-cap lab var c1780 "(=) TOTAL EQUITY"                                        // Equity Total
-
-* TOTAL LIABILITIES
-cap lab var c1790 "(=) TOTAL LIABILITIES AND EQUITY" // (c1620+c1780)
-
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
 *** INCOME STATEMENT - INCOME
 cap lab var c1800 "(+) NET DOMESTIC SALES SUBJECT TO 12% TAX RATE"
@@ -351,12 +397,39 @@ cap lab var c1870 "(+) DOMESTIC DIVIDENDS RECEIVED"
 cap lab var c1880 "(+) EXEMPTED INCOME FROM DONATIONS AND CONTRIBUTIONS - FROM PUBLIC RESOURCES"
 cap lab var c1890 "(+) EXEMPTED INCOME FROM DONATIONS AND CONTRIBUTIONS - FROM OTHER ECUADORIAN SOURCES"
 cap lab var c1900 "(+) EXEMPTED INCOME FROM DONATIONS AND CONTRIBUTIONS - FROM ABROAD"
-cap lab var c1910 "(+) EXEMPTED INCOME FROM DONATIONS AND CONTRIBUTIONS" // (c1880+c1890+c1900)
+cap lab var c1910 "(=) EXEMPTED INCOME FROM DONATIONS AND CONTRIBUTIONS" // c1880 + c1890 + c1900
 cap lab var c1920 "(+) OTHER EXEMPTED INCOME"
 cap lab var c1930 "(=) TOTAL INCOME"                                            // Total
 
 cap lab var c1940 "( ) NET SALES OF FIXED ASSETS"
 cap lab var c1950 "( ) REIMBURSEMENT RECEIVED AS INTERMEDIARY"
+
+
+* Regenerate sum variables to use instead of single cells (seems to work better)
+recast double c1800-c1950
+replace c1910 = cond(c1880!=0 | c1890!=0 | c1900!=0, c1880 + c1890 + c1900, c1910)
+drop c1880 c1890 c1900
+
+* Create new sums
+gen double tot_R = c1930
+gen double tot_R_calc = c1800 + c1810 + c1820 + c1830 + c1840 + c1850 + c1860 + c1870 + c1910 + c1920
+format %20.2f tot_*
+lab var tot_R              "(=) TOTAL ASSETS - REPORTED"
+lab var tot_R_calc         "(=) TOTAL ASSETS - CALCULATED"
+drop c1800 c1810 c1820 c1830 c1840 c1850 c1860 c1870 c1910 c1920 c1930 c1940 c1950
+
+////////////////////////////////////////////////////////////////////////////////
+
+
+use "/home/mivazq/data/transactions_ecuador/1_rawdata/F101/F101_2008_jul2012.dta" , clear
+order c*, seq
+
+
+* Drop weird variables (keep the two that have some values to find out)
+rename (c2210 c2230) (unk_c2210 unk_c2230)
+order unk_*, last
+drop c2050-c2220
+
 
 
 *** INCOME STATEMENT - COSTS & EXPENSES
@@ -374,10 +447,27 @@ cap lab var c2250 "(-) FINAL INVENTORY OF PRODUCTS IN PROCESS - PRODUCTION COSTS
 cap lab var c2260 "(+) INITIAL INVENTORY OF FINISHED PRODUCTS - PRODUCTION COSTS"
 cap lab var c2270 "(-) FINAL INVENTORY OF FINISHED PRODUCTS - PRODUCTION COSTS"
 
+
+
+
+
+
+
 cap lab var c2280 "(+) WAGES, SALARIES AND OTHER TAXABLE REMUNERATIONS - PRODUCTION COSTS"
 cap lab var c2290 "(+) WAGES, SALARIES AND OTHER TAXABLE REMUNERATIONS - ADMIN EXPENSES"
 cap lab var c2300 "(+) SOCIAL BENEFITS AND OTHER NON-TAXABLE COMPENSATION - PRODUCTION COSTS"
 cap lab var c2310 "(+) SOCIAL BENEFITS AND OTHER NON-TAXABLE COMPENSATION - ADMIN EXPENSES"
+
+
+cap lab var c2320 "(+) WAGES, SALARIES AND OTHER TAXABLE REMUNERATIONS"
+cap lab var c2330 "(+) PAYMENTS COMPLETED TO OUTSOURCING"
+cap lab var c2340 "(+) WAGES, SALARIES AND OTHER TAXABLE REMUNERATIONS OUTSOURCING"
+//cap lab var c2350 "???"
+rename (c2350) (unk_c2350)
+order unk_*, last
+replace c2290 = cond(c2320!=0 | c2340!=0, c2320 + c2340, c2290)
+drop c2320 c2330 c2340
+
 cap lab var c2360 "(+) CONTRIBUTION TO SOCIAL SECURITY (INCLUDING RESERVE FUND) - PRODUCTION COSTS"
 cap lab var c2370 "(+) CONTRIBUTION TO SOCIAL SECURITY (INCLUDING RESERVE FUND) - ADMIN EXPENSES"
 cap lab var c2380 "(+) PROFESSIONAL FEES AND EXPENSES - PRODUCTION COSTS"
@@ -388,14 +478,32 @@ cap lab var c2420 "(+) REAL ESTATE RENT - PRODUCTION COSTS"
 cap lab var c2430 "(+) REAL ESTATE RENT - ADMIN EXPENSES"
 cap lab var c2440 "(+) MAINTENANCE AND REPAIRS - PRODUCTION COSTS"
 cap lab var c2450 "(+) MAINTENANCE AND REPAIRS - ADMIN EXPENSES"
-cap lab var c2640 "(+) FUEL - PRODUCTION COSTS"
-cap lab var c2650 "(+) FUEL - ADMIN EXPENSES"
+
+
+
+
+//cap lab var c2350 "???"
+rename (c2460 c2470 c2480 c2490 c2500 c2520 c2540 c2550 c2570 c2580) ///
+       (unk_c2460 unk_c2470 unk_c2480 unk_c2490 unk_c2500 unk_c2520 unk_c2540 unk_c2550 unk_c2570 unk_c2580)
+order unk_*, last
+
+
+
+
+cap lab var c2640 "(+) FUEL AND LUBRICANTS - PRODUCTION COSTS"
+cap lab var c2650 "(+) FUEL AND LUBRICANTS - ADMIN EXPENSES"
+cap lab var c2660 "(+) FUEL - ADMIN EXPENSES" // not needed, I'll use c2650
+assert c2650>c2660 if c2650!=0 // c2650 should always be higher (unless not reported)
+replace c2650 = c2660 if c2650==0 // move c2660 if only reported in c2660
+
 cap lab var c2670 "(+) MARKETING - PRODUCTION COSTS"
 cap lab var c2680 "(+) MARKETING - ADMIN EXPENSES"
 cap lab var c2690 "(+) SUPPLIES AND MATERIALS - PRODUCTION COSTS"
 cap lab var c2700 "(+) SUPPLIES AND MATERIALS - ADMIN EXPENSES"
 cap lab var c2710 "(+) TRANSPORTATION - PRODUCTION COSTS"
 cap lab var c2720 "(+) TRANSPORTATION - ADMIN EXPENSES"
+
+
 
 cap lab var c2730 "(+) PROVISIONS - FOR RETIREMENT - PRODUCTION COSTS"
 cap lab var c2740 "(+) PROVISIONS - FOR RETIREMENT - ADMIN EXPENSES"
@@ -404,26 +512,52 @@ cap lab var c2760 "(+) PROVISIONS - FOR EVICTION - ADMIN EXPENSES"
 cap lab var c2770 "(+) PROVISIONS - FOR UNCOLLECTIBLE ACCOUNTS - ADMIN EXPENSES"
 cap lab var c2780 "(+) PROVISIONS - OTHER PROVISIONS - PRODUCTION COSTS"
 cap lab var c2790 "(+) PROVISIONS - OTHER PROVISIONS - ADMIN EXPENSES"
+cap lab var c2800 "(=) TOTAL PROVISIONS"
+replace c2800 = cond(c2730!=0 | c2740!=0 | c2750!=0 | c2760!=0 | c2770!=0 | c2780!=0 | c2790!=0, ///
+                     c2730    + c2740    + c2750    + c2760    + c2770    + c2780    + c2790,   c2800) // keep sum if singles are zero
+drop c2730 c2740 c2750 c2760 c2770 c2780 c2790 // considered in c2800
+
+
 cap lab var c2810 "(+) COMMERCIAL LEASING - HOME - PRODUCTION COSTS"
 cap lab var c2820 "(+) COMMERCIAL LEASING - HOME - ADMIN EXPENSES"
 cap lab var c2830 "(+) COMMERCIAL LEASING - ABROAD - PRODUCTION COSTS"
 cap lab var c2840 "(+) COMMERCIAL LEASING - ABROAD - ADMIN EXPENSES"
+cap lab var c2850 "(=) COMMERCIAL LEASING - PRODUCTION COSTS"
+cap lab var c2860 "(=) COMMERCIAL LEASING - ADMIN EXPENSES"
+replace c2850 = cond(c2810!=0 | c2830!=0, c2810 + c2830, c2850)
+drop c2810 c2830 // considered in c2850
+replace c2860 = cond(c2820!=0 | c2840!=0, c2820 + c2840, c2860)
+drop c2820 c2840 // considered in c2860
+
+
+
 cap lab var c2870 "(+) COMMISSIONS - HOME - PRODUCTION COSTS"
 cap lab var c2880 "(+) COMMISSIONS - HOME - ADMIN EXPENSES"
 cap lab var c2890 "(+) COMMISSIONS - ABROAD - PRODUCTION COSTS"
 cap lab var c2900 "(+) COMMISSIONS - ABROAD - ADMIN EXPENSES"
+cap lab var c2910 "(=) TOTAL COMMISSIONS"
+replace c2910 = cond(c2870!=0 | c2880!=0 | c2890!=0 | c2900!=0, c2870 + c2880 + c2890 + c2900, c2910) // keep sum if singles are zero
+drop c2870 c2880 c2890 c2900 // considered in c2850
+
+
 cap lab var c2920 "(+) BANK INTEREST - HOME - PRODUCTION COSTS"
 cap lab var c2930 "(+) BANK INTEREST - HOME - ADMIN EXPENSES"
 cap lab var c2940 "(+) BANK INTEREST - ABROAD - PRODUCTION COSTS"
 cap lab var c2950 "(+) BANK INTEREST - ABROAD - ADMIN EXPENSES"
-cap lab var c2960 "(+) INTERESES PAGADOS A TERCEROS - RELATED HOME - PRODUCTION COSTS"
-cap lab var c2970 "(+) INTERESES PAGADOS A TERCEROS - RELATED HOME - ADMIN EXPENSES"
-cap lab var c2980 "(+) INTERESES PAGADOS A TERCEROS - RELATED ABROAD - PRODUCTION COSTS"
-cap lab var c2990 "(+) INTERESES PAGADOS A TERCEROS - RELATED ABROAD - ADMIN EXPENSES"
-cap lab var c3000 "(+) INTERESES PAGADOS A TERCEROS - NOT RELATED HOME - PRODUCTION COSTS"
-cap lab var c3010 "(+) INTERESES PAGADOS A TERCEROS - NOT RELATED HOME - ADMIN EXPENSES"
-cap lab var c3020 "(+) INTERESES PAGADOS A TERCEROS - NOT RELATED ABROAD - PRODUCTION COSTS"
-cap lab var c3030 "(+) INTERESES PAGADOS A TERCEROS - NOT RELATED ABROAD - ADMIN EXPENSES"
+cap lab var c2960 "(+) INTEREST PAID TO OTHERS - RELATED HOME - PRODUCTION COSTS"
+cap lab var c2970 "(+) INTEREST PAID TO OTHERS - RELATED HOME - ADMIN EXPENSES"
+cap lab var c2980 "(+) INTEREST PAID TO OTHERS - RELATED ABROAD - PRODUCTION COSTS"
+cap lab var c2990 "(+) INTEREST PAID TO OTHERS - RELATED ABROAD - ADMIN EXPENSES"
+cap lab var c3000 "(+) INTEREST PAID TO OTHERS - NOT RELATED HOME - PRODUCTION COSTS"
+cap lab var c3010 "(+) INTEREST PAID TO OTHERS - NOT RELATED HOME - ADMIN EXPENSES"
+cap lab var c3020 "(+) INTEREST PAID TO OTHERS - NOT RELATED ABROAD - PRODUCTION COSTS"
+cap lab var c3030 "(+) INTEREST PAID TO OTHERS - NOT RELATED ABROAD - ADMIN EXPENSES"
+cap lab var c3040 "(=) TOTAL INTEREST PAID"
+replace c3040 = cond(c2920!=0 | c2930!=0 | c2940!=0 | c2950!=0 | c2960!=0 | c2970!=0 | c2980!=0 | c2990!=0 | c3000!=0 | c3010!=0 | c3020!=0 | c3030, ///
+                     c2920    + c2930    + c2940    + c2950    + c2960    + c2970    + c2980    + c2990    + c3000    + c3010    + c3020    + c3030,   c3040) // keep sum if singles are zero
+drop c2920 c2930 c2940 c2950 c2960 c2970 c2980 c2990 c3000 c3010 c3020 c3030 // considered in c3040
+
+
 cap lab var c3050 "(+) LOSS FROM SALE OF ASSETS - RELATED - PRODUCTION COSTS"
 cap lab var c3060 "(+) LOSS FROM SALE OF ASSETS - RELATED - ADMIN EXPENSES"
 cap lab var c3070 "(+) LOSS FROM SALE OF ASSETS - NOT RELATED - PRODUCTION COSTS"
@@ -461,6 +595,48 @@ cap lab var c3380 "(=) TOTAL COSTS AND EXPENDITURES" // (c3360+c3370)
 cap lab var c3390 "( ) LOSS OF INVENTORY"
 cap lab var c3400 "( ) PAYMENT FOR REIMBURSEMENT PAID AS REIMBURSER"
 cap lab var c3410 "( ) PAYMENT FOR REIMBURSEMENT PAID AS INTERMEDIARY"
+
+
+
+
+
+
+
+
+keep c2280-c2350
+recast double c2280-c2350
+* Check for negatives
+forval i=228/235 {
+    local n = `i'*10
+    di "c`n'"
+    count if c`n'<0
+}
+
+
+
+
+
+
+
+* Old sum
+gen double tot_R_calc_old = c1800 + c1810 + c1820 + c1830 + c1840 + c1850 + c1860 + c1870 + c1880 + c1890 + c1900 + c1920
+
+
+gen double tot_R = c1930
+gen double tot_R_calc = c1800 + c1810 + c1820 + c1830 + c1840 + c1850 + c1860 + c1870 + c1910 + c1920
+gen same = round(tot_R,0.01)==round(tot_R_calc_old,0.01)
+gen same_new = round(tot_R,0.01)==round(tot_R_calc,0.01)
+tab same same_new
+
+
+
+
+
+
+
+
+
+
 
 
 *** TAX BALANCE
