@@ -21,31 +21,38 @@ program define defineF101, rclass
 //  (-) are cells that are subtracted
 //  (=) are cells that are a results of calculation based on other cells
 //  ( ) are cells that contain informative numbers, not used for any calculation
+//  (?) don't know
+
+
+
+use "/home/mivazq/data/transactions_ecuador/1_rawdata/F101/F101_2011_jul2012.dta" , clear
+
+
+
+* First let's reorder the variables
+order c*, seq
 
 ////////////////////////////////////////////////////////////////////////////////
-**#                             1 - LABEL FORM CELLS
 ////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
 
 *** TRANSACTIONS WITH RELATED PARTIES ABROAD DURING THE FISCAL PERIOD
-cap lab var c110  "RECORD"
-cap lab var c112  "(+) ASSETS WITH RELATED PARTIES ABROAD - TAX HEAVEN"
-cap lab var c113  "(+) LIABILITIES WITH RELATED PARTIES ABROAD - TAX HEAVEN"
-cap lab var c114  "(+) INCOME WITH RELATED PARTIES ABROAD - TAX HEAVEN"
-cap lab var c115  "(+) EXPENDITURE WITH RELATED PARTIES ABROAD - TAX HEAVEN"
-cap lab var c120  "(+) ASSETS WITH RELATED PARTIES ABROAD - OTHER REGIME"
-cap lab var c130  "(+) LIABILITIES WITH RELATED PARTIES ABROAD - OTHER REGIME"
-cap lab var c140  "(+) INCOME WITH RELATED PARTIES ABROAD - OTHER REGIME"
-cap lab var c150  "(+) EXPENDITURE WITH RELATED PARTIES ABROAD - OTHER REGIME"
-cap lab var c160  "(=) TOTAL OPERATIONS WITH RELATED PARTIES FROM ABROAD"       // Total
 
-* Drop (not needed)
-forval i=110/169 {
-    cap drop c`i'
-}
+* We don't need transactions with parties abroad at all. Drop them all.
+drop c110-c160
+
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+
+
+*** ASSETS
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
-*** BALANCE SHEET - ASSETS
 * CURRENT ASSETS
 cap lab var c170  "(+) FUNDS, BANKS ASSETS"
 cap lab var c180  "(+) CURRENT INVESTMENTS"
@@ -79,13 +86,19 @@ cap lab var c450  "(+) DIVIDENDS PAID IN ADVANCE"
 cap lab var c460  "(+) OTHER CURRENT ASSETS"
 cap lab var c470  "(=) TOTAL CURRENT ASSETS"                                    // Total
 
-* Regenerate sum variables to use instead of single cells (seems to work better)
+* Regenerate sum variables to use instead of single cells when the values of the
+* at least one single cell is different than 0. Keep the given sum instead.
 recast double c170-c470
-replace c280 = cond(c200!=0 | c210!=0, c200 + c210, c280) // keep sum if singles are zero
-replace c290 = cond(c220!=0 | c230!=0, c220 + c230, c290) // keep sum if singles are zero
-replace c300 = cond(c240!=0 | c250!=0 | c260!=0 | c270!=0, c240 + c250 + c260 + c270, c300) // keep sum if singles are zero
-replace c330 = cond(c340!=0 | c350!=0, c340 + c350, c330) // keep sum if singles are zero
-replace c420 = cond(c430!=0 | c440!=0 | c450!=0, c430 + c440 + c450, c420) // keep sum if singles are zero
+replace c280 = cond(c200!=0 | c210!=0, ///
+                    c200    + c210,    c280)
+replace c290 = cond(c220!=0 | c230!=0, ///
+                    c220    + c230,    c290)
+replace c300 = cond(c240!=0 | c250!=0 | c260!=0 | c270!=0, ///
+                    c240    + c250    + c260    + c270,    c300)
+replace c330 = cond(c340!=0 | c350!=0, ///
+                    c340    + c350,    c330)
+replace c420 = cond(c430!=0 | c440!=0 | c450!=0, ///
+                    c430    + c440    + c450,    c420)
 drop c200 c210           // considered in c280
 drop c220 c230           // considered in c290
 drop c240 c250 c260 c270 // considered in c300
@@ -102,9 +115,11 @@ lab var tot_CA_calc "(=) TOTAL CURRENT ASSETS - CALCULATED"
 lab var tot_CA_prov "(-) PROVISIONS ON TOTAL CURRENT ASSETS"
 drop c170 c180 c190 c280 c290 c300 c310 c320 c330 c360 c370 c380 c390 c400 c410 c420 c460 c470
 
+
 ////////////////////////////////////////////////////////////////////////////////
 
-* FIXED ASSETS (TANGIBLE)
+
+* FIXED ASSETS
 cap lab var c480  "(+) BUILDINGS"
 cap lab var c490  "(+) SHIPS, AIRCRAFT, AND BARGES (ETC.)"
 cap lab var c500  "(+) FURNITURE, FURNISHINGS"
@@ -139,11 +154,16 @@ assert c600==0
 assert c620==0
 drop c600 c620 // these sums are redundant as they'll be included in another way
 
-* Regenerate sum variables to use instead of single cells (seems to work better)
-replace c510 = cond(c630!=0 | c640!=0, c630 + c640, c510) // keep sum if singles are zero
-replace c520 = cond(c500!=0 | c510!=0, c500 + c510, c520) // keep sum if singles are zero
-replace c530 = cond(c480!=0 | c520!=0, c480 + c520, c530) // keep sum if singles are zero
-replace c570 = cond(c580!=0 | c660!=0 | c670!=0, c580 + c660 + c670, c570)
+* Regenerate sum variables to use instead of single cells when the values of the
+* at least one single cell is different than 0. Keep the given sum instead.
+replace c510 = cond(c630!=0 | c640!=0, ///
+                    c630    + c640,    c510)
+replace c520 = cond(c500!=0 | c510!=0, ///
+                    c500    + c510,    c520)
+replace c530 = cond(c480!=0 | c520!=0, ///
+                    c480    + c520,    c530)
+replace c570 = cond(c580!=0 | c660!=0 | c670!=0, ///
+                    c580    + c660    + c670,    c570)
 drop c630 c640      // considered in c510
 drop c500 c510      // considered in c520
 drop c480 c520      // considered in c530
@@ -163,17 +183,19 @@ lab var tot_FA_calc "(=) TOTAL FIXED ASSETS - CALCULATED"
 lab var tot_FA_acdp "(-) ACCUMULATED DEPRECIATION ON TOTAL FIXED ASSETS"
 drop c490 c530 c540 c550 c560 c570 c590 c650 c680 c690
 
+
 ////////////////////////////////////////////////////////////////////////////////
 
-* DEFERRED ASSETS (INTANGIBLE)
+
+* DEFERRED ASSETS
 cap lab var c700  "(+) TRADEMARKS, PATENTS, ETC."
-cap lab var c710  "(-) ACCUMULATED DEPRECIATION TRADEMARKS, PATENTS, ETC."
+cap lab var c710  "(-) ACCUMULATED AMORTIZATION TRADEMARKS, PATENTS, ETC."
 cap lab var c720  "(=) TOTAL INTANGIBLE FIXED ASSETS"
 cap lab var c730  "(+) ORGANIZATIONAL COSTS"
 cap lab var c740  "(+) RESEARCH AND EXPLORATION COSTS"
 cap lab var c750  "(+) BALANCE DEBTOR CURRENCY EXCHANGE"
 cap lab var c760  "(+) OTHER DEFERRED ASSETS"
-cap lab var c770  "(-) ACCUMULATED DEPRECIATION OTHER"
+cap lab var c770  "(-) ACCUMULATED AMORTIZATION OTHER"
 cap lab var c780  "(=) TOTAL DEFERRED ASSETS"                                   // Total
 
 * First drop c720 since it's a subtotal that doesn't make sense and sometimes
@@ -189,16 +211,18 @@ replace c770 = cond(c710!=c770, c770 + c710, c770)
 drop c710
 
 * Store final sums (reported and calculated) and drop not needed remaining cells
-gen double tot_DA_acdp = cond(c770>0, -c770, c770) // in case they get reported with minus
+gen double tot_DA_acam = cond(c770>0, -c770, c770) // in case they get reported with minus
 gen double tot_DA      = c780
-gen double tot_DA_calc = c700 + c730 + c740 + c750 + c760 + tot_DA_acdp
+gen double tot_DA_calc = c700 + c730 + c740 + c750 + c760 + tot_DA_acam
 format %20.2f tot_*
 lab var tot_DA      "(=) TOTAL DEFERRED ASSETS - REPORTED"
 lab var tot_DA_calc "(=) TOTAL DEFERRED ASSETS - CALCULATED"
-lab var tot_DA_acdp "(-) ACCUMULATED DEPRECIATION ON TOTAL DEFERRED ASSETS"
+lab var tot_DA_acam "(-) ACCUMULATED AMORTIZATION ON TOTAL DEFERRED ASSETS"
 drop c700 c730 c740 c750 c760 c770 c780
 
+
 ////////////////////////////////////////////////////////////////////////////////
+
 
 * LONG TERM ASSETS
 cap lab var c790  "(+) LONG TERM INVESTMENTS - SHARES AND OTHER EQUITY"
@@ -218,18 +242,18 @@ cap lab var c920  "(+) OTHER LONG TERM COSTS PAYED IN ADVANCE"
 cap lab var c1010 "(+) OTHER LONG TERM ASSETS"
 cap lab var c1070 "(=) TOTAL LONG TERM ASSETS"                                  // Total
 
-* Old
-gen double tot_LA_calc_old = c790 + c800 + c810 + c820 + c830 + c840 + c860 + c870 + c880 + c890 - c910 + c1010
-
-* Regenerate sum variables to use instead of single cells (seems to work better)
+* Regenerate sum variables to use instead of single cells when the values of the
+* at least one single cell is different than 0. Keep the given sum instead.
 * Firms seem to have filed the form weirdly (no surprise). So to get things right
 * I'll first sum up "OTHER LONG TERM ACCOUNTS RECEIVABLE" and then combine the 
 * the rest together. In fact, many people summed up ALL accounts in c850 and not
 * only c790 + c800 + c810 + c820 + c830 + c840
 recast double c790-c1070
-replace c900 = cond(c860!=0 | c870!=0 | c880!=0 | c890!=0, c860 + c870 + c880 + c890, c890) // keep sum if singles are zero
+replace c900 = cond(c860!=0 | c870!=0 | c880!=0 | c890!=0, ///
+                    c860    + c870    + c880    + c890,    c890)
 drop c860 c870 c880 c890 // considered in c900
-gen c850_new = cond(c790!=0 | c800!=0 | c810!=0 | c820!=0 | c830!=0 | c840!=0, c790 + c800 + c810 + c820 + c830 + c840, c850) // keep sum if singles are zero
+gen c850_new = cond(c790!=0 | c800!=0 | c810!=0 | c820!=0 | c830!=0 | c840!=0, ///
+                    c790    + c800    + c810    + c820    + c830    + c840,    c850)
 drop c790 c800 c810 c820 c830 c840 c850 // considered in c850
 
 * This next line assumes that if c850_new and c900 are the same value it must be
@@ -249,13 +273,15 @@ lab var tot_LA_calc "(=) TOTAL LONG TERM ASSETS - CALCULATED"
 lab var tot_LA_prov "(-) PROVISIONS ON TOTAL LONG TERM ASSETS"
 drop c850_new c900 c910 c920 c1010 c1070 lt_assets
 
+
 ////////////////////////////////////////////////////////////////////////////////
+
 
 * TOTAL ASSETS
 cap lab var c1050 "( ) CONTINGENT ASSETS"
 cap lab var c1075 "( ) ASSETS COMING FROM REINVESTMENT OF PROFITS"
 cap lab var c1080 "(=) TOTAL ASSETS" // (c470+c690+c780+c1070)
-drop c1050 c1075
+drop c1050 c1075 // no need for informative cells
 
 * Create new sums
 gen double tot_A = c1080
@@ -277,115 +303,18 @@ drop c1080
 ////////////////////////////////////////////////////////////////////////////////
 
 
-// *** BALANCE SHEET - LIABILITIES & EQUITIES
-// * OUT OF CATEGORY? (unsure whether +/= from c960 onwards)
-// cap lab var c930  "(+) OBLIGATIONS FROM TAX AUTHORITIES"
-// cap lab var c940  "(+) OBLIGATIONS FROM IESS"
-// cap lab var c950  "(+) OBLIGATIONS FROM EMPLOYEES"
-// cap lab var c960  "(=) TOTAL OBLIGATIONS FROM IESS, EMPLOYEES, AND TAX AUTHORITIES"
-// cap lab var c970  "(+) OTHER CURRENT LIABILITIES"
-// cap lab var c980  "(+) MORTGAGES"
-// cap lab var c990  "(+) EMITTED OBLIGATIONS ACQUIRED - RELATED"
-// cap lab var c1000 "(+) EMITTED OBLIGATIONS ACQUIRED - NOT RELATED"
-// cap lab var c1020 "(+) OTHER LONG TERM LIABILITIES"
-// cap lab var c1030 "(+) OTHER DEFERRED LIABILITIES"
-// cap lab var c1040 "(+) OTHER LIABILITIES"
-// cap lab var c1090 "(+) REVENUES RECEIVED IN ADVANCE"
-// cap lab var c1100 "(+) CLIENT PAYMENTS RECEIVED IN ADVANCE"
-//
-// * CURRENT LIABILITIES
-// cap lab var c1110 "(+) CURRENT ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS - RELATED HOME"
-// cap lab var c1120 "(+) CURRENT ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS - RELATED ABROAD"
-// cap lab var c1130 "(+) CURRENT ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS - NOT RELATED HOME"
-// cap lab var c1140 "(+) CURRENT ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS - NOT RELATED ABROAD"
-// cap lab var c1150 "(=) TOTAL CURRENT ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS" // c1110 + c1120 + c1130 + c1140
-// cap lab var c1160 "(=) TOTAL CURRENT ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS - HOME" // c1110 + c1130
-// cap lab var c1170 "(=) TOTAL CURRENT ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS - ABROAD" // c1120 + c1140
-// cap lab var c1180 "(+) CURRENT OBLIGATIONS WITH FINANCIAL INSTITUTIONS - HOME"
-// cap lab var c1190 "(+) CURRENT OBLIGATIONS WITH FINANCIAL INSTITUTIONS - ABROAD"
-// cap lab var c1200 "(+) CURRENT LOANS FROM SHAREHOLDERS - HOME"
-// cap lab var c1210 "(+) CURRENT LOANS FROM SHAREHOLDERS - ABROAD"
-// cap lab var c1220 "(=) TOTAL CURRENT OBLIGATIONS WITH FINANCIAL INSTITUTIONS" // c1180 + c1190
-// cap lab var c1230 "(=) TOTAL CURRENT LOANS FROM SHAREHOLDERS" // c1200 + c1210
-// cap lab var c1240 "(+) OTHER CURRENT ACCOUNTS AND NOTES PAYABLE - RELATED HOME"
-// cap lab var c1250 "(+) OTHER CURRENT ACCOUNTS AND NOTES PAYABLE - RELATED ABROAD"
-// cap lab var c1260 "(+) OTHER CURRENT ACCOUNTS AND NOTES PAYABLE - NOT RELATED HOME"
-// cap lab var c1270 "(+) OTHER CURRENT ACCOUNTS AND NOTES PAYABLE - NOT RELATED ABROAD"
-// cap lab var c1280 "(+) INCOME TAX TO BE PAID IN FISCAL PERIOD"
-// cap lab var c1290 "(+) WORKERS' PROFITS TO BE PAID IN FISCAL PERIOD"
-// cap lab var c1300 "(+) TRANSFERS TO THE HEAD OFFICE AND BRANCHES (OVERSEAS)" 
-// cap lab var c1310 "(+) CURRENT CREDITO A MUTUO"
-// cap lab var c1320 "(+) SHORT TERM OBLIGATIONS ISSUED"
-// cap lab var c1330 "(+) OTHER PROVISIONS"
-// cap lab var c1340 "(=) TOTAL CURRENT LIABILITIES"                               // Total
-//
-// * LONG TERM LIABILITIES
-// cap lab var c1350 "(+) LONG TERM ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS - RELATED - HOME"
-// cap lab var c1360 "(+) LONG TERM ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS - RELATED - ABROAD"
-// cap lab var c1370 "(+) LONG TERM ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS - NOT RELATED - HOME"
-// cap lab var c1380 "(+) LONG TERM ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS - NOT RELATED - ABROAD"
-// cap lab var c1390 "(=) TOTAL LONG TERM ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS" // c1350 + c1360 + c1370 + c1380
-// cap lab var c1400 "(=) TOTAL LONG TERM ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS - HOME" // c1350 + c1370
-// cap lab var c1410 "(=) TOTAL LONG TERM ACCOUNTS AND NOTES PAYABLE TO SUPPLIERS - ABROAD" // c1360 + c1380
-// cap lab var c1420 "(+) LONG TERM OBLIGATIONS TO FINANCIAL INSTITUTIONS - HOME"
-// cap lab var c1430 "(+) LONG TERM OBLIGATIONS TO FINANCIAL INSTITUTIONS - ABROAD"
-// cap lab var c1440 "(=) TOTAL LONG TERM OBLIGATIONS WITH FINANCIAL INSTITUTIONS" // c1420 + c1430
-// cap lab var c1450 "(+) LONG TERM LOANS FROM SHAREHOLDERS - HOME"
-// cap lab var c1460 "(+) LONG TERM LOANS FROM SHAREHOLDERS - ABROAD"
-// cap lab var c1470 "(=) TOTAL LONG TERM LOANS FROM SHAREHOLDERS" // c1450 + c1460
-// cap lab var c1480 "(+) OTHER LONG TERM ACCOUNTS AND NOTES PAYABLE - RELATED HOME"
-// cap lab var c1490 "(+) OTHER LONG TERM ACCOUNTS AND NOTES PAYABLE - RELATED ABROAD"
-// cap lab var c1500 "(+) OTHER LONG TERM ACCOUNTS AND NOTES PAYABLE - NOT RELATED HOME"
-// cap lab var c1510 "(+) OTHER LONG TERM ACCOUNTS AND NOTES PAYABLE - NOT RELATED ABROAD"
-// cap lab var c1520 "(=) TOTAL OTHER LONG TERM ACCOUNTS AND NOTES PAYABLE" // c1480 + c1490 + c1500 + c1510
-// cap lab var c1530 "(+) LONG TERM TRANSFERS TO THE HEAD OFFICE AND BRANCHES (OVERSEAS)"
-// cap lab var c1540 "(+) LONG TERM CREDITO A MUTUO"
-// cap lab var c1550 "(+) LONG TERM OBLIGATIONS ISSUED"
-// cap lab var c1560 "(+) PROVISIONS FOR RETIREMENT"
-// cap lab var c1570 "(+) PROVISIONS FOR LAYOFFS"
-// cap lab var c1580 "(+) OTHER PROVISIONS (WITH TERMS >1 YEAR)"
-// cap lab var c1590 "(=) TOTAL LONG TERM LIABILITIES"                             // Total
-//
-// * TOTAL LIABILITIES
-// cap lab var c1060 "( ) CONTINGENT LIABILITIES"
-// cap lab var c1600 "(+) DEFFERED LIABILITIES"                                    // "Total"
-// cap lab var c1610 "(+) OTHER LIABILITIES"                                       // "Total"
-// cap lab var c1620 "(=) TOTAL LIABILITIES" // (c1340+c1590+c1600+c1610)          // Liability Total
-//
-// * EQUITIES
-// cap lab var c1630 "(+) SUBSCRIBED AND/OR ISSUED CAPITAL"
-// cap lab var c1640 "(-) SUBSCRIBED CAPITAL UNPAID, TREASURY SHARES"
-// cap lab var c1650 "(+) CAPITAL CONTRIBUTIONS BY SHAREHOLDERS OR PARTNERS"
-// cap lab var c1660 "(+) LEGAL RESERVE"
-// cap lab var c1670 "(+) FACULTATIVE STATUTORY RESERVE"
-// cap lab var c1680 "(+) CAPITAL RESERVE"
-// cap lab var c1690 "(+) FACULTATIVE STATUTORY RESERVE"
-// cap lab var c1700 "(+) OTHER SUPERAVITS"
-// cap lab var c1710 "(+) VALUATION/DONATIONS/OTHER RESERVE"
-// cap lab var c1720 "(+) OTHER RESERVES"
-// cap lab var c1730 "(=) TOTAL RESERVES" // ? Don't which which are summed
-// cap lab var c1740 "(+) PROFIT NOT DISTRIBUTED (REINVESTED) IN PREVIOUS PERIODS"
-// cap lab var c1750 "(-) ACCUMULATED LOSS FROM PREVIOUS PERIODS"
-// cap lab var c1760 "(+) NET INCOME (NET OF EMPLOYEE SHARES AND INCOME TAX)"
-// cap lab var c1770 "(-) LOSS FOR THE PERIOD"
-//
-// * TOTAL EQUITIES
-// cap lab var c1780 "(=) TOTAL EQUITY"                                            // Total
-//
-// * TOTAL LIABILITIES
-// cap lab var c1790 "(=) TOTAL LIABILITIES AND EQUITY" // (c1620+c1780)
-
+*** LIABILITIES & EQUITIES
 
 * We don't need liabilities and equity at all. Drop them all.
 drop c930-c1790
 
 
-
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-*** INCOME STATEMENT - INCOME
+
+*** INCOME
 cap lab var c1800 "(+) NET DOMESTIC SALES SUBJECT TO 12% TAX RATE"
 cap lab var c1810 "(+) NET DOMESTIC SALES SUBJECT TO 0% TAX RATE"
 cap lab var c1820 "(+) NET EXPORTS"
@@ -400,543 +329,579 @@ cap lab var c1900 "(+) EXEMPTED INCOME FROM DONATIONS AND CONTRIBUTIONS - FROM A
 cap lab var c1910 "(=) EXEMPTED INCOME FROM DONATIONS AND CONTRIBUTIONS" // c1880 + c1890 + c1900
 cap lab var c1920 "(+) OTHER EXEMPTED INCOME"
 cap lab var c1930 "(=) TOTAL INCOME"                                            // Total
-
 cap lab var c1940 "( ) NET SALES OF FIXED ASSETS"
 cap lab var c1950 "( ) REIMBURSEMENT RECEIVED AS INTERMEDIARY"
+drop c1940 c1950 // no need for informative cells
 
 
-* Regenerate sum variables to use instead of single cells (seems to work better)
-recast double c1800-c1950
-replace c1910 = cond(c1880!=0 | c1890!=0 | c1900!=0, c1880 + c1890 + c1900, c1910)
+* Regenerate sum variables to use instead of single cells when the values of the
+* at least one single cell is different than 0. Keep the given sum instead.
+recast double c1800-c1930
+replace c1910 = cond(c1880!=0 | c1890!=0 | c1900!=0, ///
+                     c1880    + c1890    + c1900,    c1910)
 drop c1880 c1890 c1900
 
 * Create new sums
 gen double tot_R = c1930
 gen double tot_R_calc = c1800 + c1810 + c1820 + c1830 + c1840 + c1850 + c1860 + c1870 + c1910 + c1920
 format %20.2f tot_*
-lab var tot_R              "(=) TOTAL ASSETS - REPORTED"
-lab var tot_R_calc         "(=) TOTAL ASSETS - CALCULATED"
-drop c1800 c1810 c1820 c1830 c1840 c1850 c1860 c1870 c1910 c1920 c1930 c1940 c1950
+lab var tot_R      "(=) TOTAL ASSETS - REPORTED"
+lab var tot_R_calc "(=) TOTAL ASSETS - CALCULATED"
+drop c1800 c1810 c1820 c1830 c1840 c1850 c1860 c1870 c1910 c1920 c1930
+
 
 ////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 
+*** COSTS & EXPENSES
 
-use "/home/mivazq/data/transactions_ecuador/1_rawdata/F101/F101_2008_jul2012.dta" , clear
-order c*, seq
+* Recast to double
+recast double c1960-c3410
 
+* Drop variables "VND" valor no deducible, no need
+foreach var of varlist c1960-c3410 {
+    local lab : variable label `var'
+    if substr("`lab'",1,3)=="VND" {
+        di "Dropping `var' with label `lab'"
+        drop `var'
+    }
+}
+cap drop c2745 // wrong label ("VPN") but it's ""
 
-* Drop weird variables (keep the two that have some values to find out)
-rename (c2210 c2230) (unk_c2210 unk_c2230)
-order unk_*, last
-drop c2050-c2220
-
-
-
-*** INCOME STATEMENT - COSTS & EXPENSES
-cap lab var c1960 "(+) INITIAL INVENTORY OF GOODS NOT PROUDCED BY THE FIRM - PRODUCTION COSTS"
-cap lab var c1970 "(+) NET PURCHASES OF DOMESTIC GOODS NOT PRODUCED BY THE FIRM - PRODUCTION COSTS"
-cap lab var c1980 "(+) IMPORTS NOT PRODUCED BY THE FIRM - PRODUCTION COSTS"
-cap lab var c1990 "(+) IMPORTS NOT PRODUCED BY THE FIRM - ADMIN EXPENSES"
-cap lab var c2000 "(-) FINAL INVENTORY OF GOOD NOT PRODUCED BY THE FIRM - PRODUCTION COSTS"
-cap lab var c2010 "(+) INITIAL INVENTORY OF RAW MATERIAL - PRODUCTION COSTS"
-cap lab var c2020 "(+) NET DOMESTIC PURCHES OF RAW MATERIAL - PRODUCTION COSTS"
-cap lab var c2030 "(+) IMPORTS OF RAW MATERIAL - PRODUCTION COSTS"
-cap lab var c2040 "(-) FINAL INVENTORY OF RAW MATERIAL - PRODUCTION COSTS"
-cap lab var c2240 "(+) INITIAL INVENTORY OF PRODUCTS IN PROCESS - PRODUCTION COSTS"
-cap lab var c2250 "(-) FINAL INVENTORY OF PRODUCTS IN PROCESS - PRODUCTION COSTS"
-cap lab var c2260 "(+) INITIAL INVENTORY OF FINISHED PRODUCTS - PRODUCTION COSTS"
-cap lab var c2270 "(-) FINAL INVENTORY OF FINISHED PRODUCTS - PRODUCTION COSTS"
-
-
-
-
-
-
-
-cap lab var c2280 "(+) WAGES, SALARIES AND OTHER TAXABLE REMUNERATIONS - PRODUCTION COSTS"
-cap lab var c2290 "(+) WAGES, SALARIES AND OTHER TAXABLE REMUNERATIONS - ADMIN EXPENSES"
-cap lab var c2300 "(+) SOCIAL BENEFITS AND OTHER NON-TAXABLE COMPENSATION - PRODUCTION COSTS"
-cap lab var c2310 "(+) SOCIAL BENEFITS AND OTHER NON-TAXABLE COMPENSATION - ADMIN EXPENSES"
-
-
-cap lab var c2320 "(+) WAGES, SALARIES AND OTHER TAXABLE REMUNERATIONS"
-cap lab var c2330 "(+) PAYMENTS COMPLETED TO OUTSOURCING"
-cap lab var c2340 "(+) WAGES, SALARIES AND OTHER TAXABLE REMUNERATIONS OUTSOURCING"
-//cap lab var c2350 "???"
-rename (c2350) (unk_c2350)
-order unk_*, last
-replace c2290 = cond(c2320!=0 | c2340!=0, c2320 + c2340, c2290)
-drop c2320 c2330 c2340
-
-cap lab var c2360 "(+) CONTRIBUTION TO SOCIAL SECURITY (INCLUDING RESERVE FUND) - PRODUCTION COSTS"
-cap lab var c2370 "(+) CONTRIBUTION TO SOCIAL SECURITY (INCLUDING RESERVE FUND) - ADMIN EXPENSES"
-cap lab var c2380 "(+) PROFESSIONAL FEES AND EXPENSES - PRODUCTION COSTS"
-cap lab var c2390 "(+) PROFESSIONAL FEES AND EXPENSES - ADMIN EXPENSES"
-cap lab var c2400 "(+) FEES TO FOREIGNERS FOR ONE-TIME EXPENSES - PRODUCTION COSTS"
-cap lab var c2410 "(+) FEES TO FOREIGNERS FOR ONE-TIME EXPENSES - ADMIN EXPENSES"
-cap lab var c2420 "(+) REAL ESTATE RENT - PRODUCTION COSTS"
-cap lab var c2430 "(+) REAL ESTATE RENT - ADMIN EXPENSES"
-cap lab var c2440 "(+) MAINTENANCE AND REPAIRS - PRODUCTION COSTS"
-cap lab var c2450 "(+) MAINTENANCE AND REPAIRS - ADMIN EXPENSES"
-
-
-
-
-//cap lab var c2350 "???"
-rename (c2460 c2470 c2480 c2490 c2500 c2520 c2540 c2550 c2570 c2580) ///
-       (unk_c2460 unk_c2470 unk_c2480 unk_c2490 unk_c2500 unk_c2520 unk_c2540 unk_c2550 unk_c2570 unk_c2580)
-order unk_*, last
-
-
-
-
-cap lab var c2640 "(+) FUEL AND LUBRICANTS - PRODUCTION COSTS"
-cap lab var c2650 "(+) FUEL AND LUBRICANTS - ADMIN EXPENSES"
-cap lab var c2660 "(+) FUEL - ADMIN EXPENSES" // not needed, I'll use c2650
-assert c2650>c2660 if c2650!=0 // c2650 should always be higher (unless not reported)
-replace c2650 = c2660 if c2650==0 // move c2660 if only reported in c2660
-
-cap lab var c2670 "(+) MARKETING - PRODUCTION COSTS"
-cap lab var c2680 "(+) MARKETING - ADMIN EXPENSES"
-cap lab var c2690 "(+) SUPPLIES AND MATERIALS - PRODUCTION COSTS"
-cap lab var c2700 "(+) SUPPLIES AND MATERIALS - ADMIN EXPENSES"
-cap lab var c2710 "(+) TRANSPORTATION - PRODUCTION COSTS"
-cap lab var c2720 "(+) TRANSPORTATION - ADMIN EXPENSES"
-
-
-
-cap lab var c2730 "(+) PROVISIONS - FOR RETIREMENT - PRODUCTION COSTS"
-cap lab var c2740 "(+) PROVISIONS - FOR RETIREMENT - ADMIN EXPENSES"
-cap lab var c2750 "(+) PROVISIONS - FOR EVICTION - PRODUCTION COSTS"
-cap lab var c2760 "(+) PROVISIONS - FOR EVICTION - ADMIN EXPENSES"
-cap lab var c2770 "(+) PROVISIONS - FOR UNCOLLECTIBLE ACCOUNTS - ADMIN EXPENSES"
-cap lab var c2780 "(+) PROVISIONS - OTHER PROVISIONS - PRODUCTION COSTS"
-cap lab var c2790 "(+) PROVISIONS - OTHER PROVISIONS - ADMIN EXPENSES"
-cap lab var c2800 "(=) TOTAL PROVISIONS"
-replace c2800 = cond(c2730!=0 | c2740!=0 | c2750!=0 | c2760!=0 | c2770!=0 | c2780!=0 | c2790!=0, ///
-                     c2730    + c2740    + c2750    + c2760    + c2770    + c2780    + c2790,   c2800) // keep sum if singles are zero
-drop c2730 c2740 c2750 c2760 c2770 c2780 c2790 // considered in c2800
-
-
-cap lab var c2810 "(+) COMMERCIAL LEASING - HOME - PRODUCTION COSTS"
-cap lab var c2820 "(+) COMMERCIAL LEASING - HOME - ADMIN EXPENSES"
-cap lab var c2830 "(+) COMMERCIAL LEASING - ABROAD - PRODUCTION COSTS"
-cap lab var c2840 "(+) COMMERCIAL LEASING - ABROAD - ADMIN EXPENSES"
-cap lab var c2850 "(=) COMMERCIAL LEASING - PRODUCTION COSTS"
-cap lab var c2860 "(=) COMMERCIAL LEASING - ADMIN EXPENSES"
-replace c2850 = cond(c2810!=0 | c2830!=0, c2810 + c2830, c2850)
-drop c2810 c2830 // considered in c2850
-replace c2860 = cond(c2820!=0 | c2840!=0, c2820 + c2840, c2860)
-drop c2820 c2840 // considered in c2860
-
-
-
-cap lab var c2870 "(+) COMMISSIONS - HOME - PRODUCTION COSTS"
-cap lab var c2880 "(+) COMMISSIONS - HOME - ADMIN EXPENSES"
-cap lab var c2890 "(+) COMMISSIONS - ABROAD - PRODUCTION COSTS"
-cap lab var c2900 "(+) COMMISSIONS - ABROAD - ADMIN EXPENSES"
-cap lab var c2910 "(=) TOTAL COMMISSIONS"
-replace c2910 = cond(c2870!=0 | c2880!=0 | c2890!=0 | c2900!=0, c2870 + c2880 + c2890 + c2900, c2910) // keep sum if singles are zero
-drop c2870 c2880 c2890 c2900 // considered in c2850
-
-
-cap lab var c2920 "(+) BANK INTEREST - HOME - PRODUCTION COSTS"
-cap lab var c2930 "(+) BANK INTEREST - HOME - ADMIN EXPENSES"
-cap lab var c2940 "(+) BANK INTEREST - ABROAD - PRODUCTION COSTS"
-cap lab var c2950 "(+) BANK INTEREST - ABROAD - ADMIN EXPENSES"
-cap lab var c2960 "(+) INTEREST PAID TO OTHERS - RELATED HOME - PRODUCTION COSTS"
-cap lab var c2970 "(+) INTEREST PAID TO OTHERS - RELATED HOME - ADMIN EXPENSES"
-cap lab var c2980 "(+) INTEREST PAID TO OTHERS - RELATED ABROAD - PRODUCTION COSTS"
-cap lab var c2990 "(+) INTEREST PAID TO OTHERS - RELATED ABROAD - ADMIN EXPENSES"
-cap lab var c3000 "(+) INTEREST PAID TO OTHERS - NOT RELATED HOME - PRODUCTION COSTS"
-cap lab var c3010 "(+) INTEREST PAID TO OTHERS - NOT RELATED HOME - ADMIN EXPENSES"
-cap lab var c3020 "(+) INTEREST PAID TO OTHERS - NOT RELATED ABROAD - PRODUCTION COSTS"
-cap lab var c3030 "(+) INTEREST PAID TO OTHERS - NOT RELATED ABROAD - ADMIN EXPENSES"
-cap lab var c3040 "(=) TOTAL INTEREST PAID"
-replace c3040 = cond(c2920!=0 | c2930!=0 | c2940!=0 | c2950!=0 | c2960!=0 | c2970!=0 | c2980!=0 | c2990!=0 | c3000!=0 | c3010!=0 | c3020!=0 | c3030, ///
-                     c2920    + c2930    + c2940    + c2950    + c2960    + c2970    + c2980    + c2990    + c3000    + c3010    + c3020    + c3030,   c3040) // keep sum if singles are zero
-drop c2920 c2930 c2940 c2950 c2960 c2970 c2980 c2990 c3000 c3010 c3020 c3030 // considered in c3040
-
-
-cap lab var c3050 "(+) LOSS FROM SALE OF ASSETS - RELATED - PRODUCTION COSTS"
-cap lab var c3060 "(+) LOSS FROM SALE OF ASSETS - RELATED - ADMIN EXPENSES"
-cap lab var c3070 "(+) LOSS FROM SALE OF ASSETS - NOT RELATED - PRODUCTION COSTS"
-cap lab var c3080 "(+) LOSS FROM SALE OF ASSETS - NOT RELATED - ADMIN EXPENSES"
-
-cap lab var c3100 "(+) OTHER LOSSES - PRODUCTION COSTS"
-cap lab var c3110 "(+) OTHER LOSSES - ADMIN EXPENSES"
-cap lab var c3120 "(+) INSURANCE AND REINSURANCE INTERMEDIARIES - PRODUCTION COSTS"
-cap lab var c3130 "(+) INSURANCE AND REINSURANCE INTERMEDIARIES - ADMIN EXPENSES"
-cap lab var c3140 "(+) INDIRECT COSTS INCURRED FROM ABROAD BY RELATED PARTIES - PRODUCTION COSTS"
-cap lab var c3150 "(+) INDIRECT COSTS INCURRED FROM ABROAD BY RELATED PARTIES - ADMIN EXPENSES"
-cap lab var c3160 "(+) ADMINISTRATIVE COSTS - ADMIN EXPENSES"
-cap lab var c3170 "(+) TAXES, CONTRIBUTIONS AND OTHER - ADMIN EXPENSES"
-cap lab var c3180 "(+) TRAVEL EXPENSES - PRODUCTION COSTS"
-cap lab var c3190 "(+) TRAVEL EXPENSES - ADMIN EXPENSES"
-cap lab var c3200 "(+) VAT INCURRED ON COSTS OR EXPENSES - PRODUCTION COSTS"
-cap lab var c3210 "(+) VAT INCURRED ON COSTS OR EXPENSES - ADMIN EXPENSES"
-cap lab var c3220 "(+) DEPRECIATION OF FIXED ASSETS - ACCELERATED - PRODUCTION COSTS"
-cap lab var c3230 "(+) DEPRECIATION OF FIXED ASSETS - ACCELERATED - ADMIN EXPENSES"
-cap lab var c3240 "(+) DEPRECIATION OF FIXED ASSETS - NON ACCELERATED - PRODUCTION COSTS"
-cap lab var c3250 "(+) DEPRECIATION OF FIXED ASSETS - NON ACCELERATED - ADMIN EXPENSES"
-cap lab var c3270 "(+) AMORTIZATION - PRODUCTION COSTS"
-cap lab var c3280 "(+) AMORTIZATION - ADMIN EXPENSES"
-cap lab var c3290 "(+) PUBLIC SERVICES - PRODUCTION COSTS"
-cap lab var c3300 "(+) PUBLIC SERVICES - ADMIN EXPENSES"
-cap lab var c3310 "(+) PAYMENT FOR OTHER SERVICES - PRODUCTION COSTS"
-cap lab var c3320 "(+) PAYMENT FOR OTHER SERVICES - ADMIN EXPENSES"
-cap lab var c3330 "(+) PAYMENT FOR OTHER GOODS - PRODUCTION COSTS"
-cap lab var c3340 "(+) PAYMENT FOR OTHER GOODS - ADMIN EXPENSES"
-
-cap lab var c3360 "(=) TOTAL COSTS"                                             // Total - PRODUCTION COSTS
-cap lab var c3370 "(=) TOTAL EXPENDITURES"                                      // Total - ADMIN EXPENSES
-cap lab var c3380 "(=) TOTAL COSTS AND EXPENDITURES" // (c3360+c3370)
-
-cap lab var c3390 "( ) LOSS OF INVENTORY"
-cap lab var c3400 "( ) PAYMENT FOR REIMBURSEMENT PAID AS REIMBURSER"
-cap lab var c3410 "( ) PAYMENT FOR REIMBURSEMENT PAID AS INTERMEDIARY"
-
-
-
-
-
-
-
-
-keep c2280-c2350
-recast double c2280-c2350
-* Check for negatives
-forval i=228/235 {
-    local n = `i'*10
-    di "c`n'"
-    count if c`n'<0
+* Drop variables "MAO" (don't know what it stands for, but they're all zeros), no need
+foreach var of varlist c1960-c3410 {
+    local lab : variable label `var'
+    if substr("`lab'",1,3)=="MAO" {
+        di "Dropping `var' with label `lab'"
+        drop `var'
+    }
 }
 
+////////////////////////////////////////////////////////////////////////////////
 
+* INVENTORY
 
+* Generate new variables available only in amendments
+cap gen c1977 = 0, after(c1970)
+cap gen c2274 = 0, after(c2270)
+cap gen c2278 = 0, after(c2274)
 
+* Label variables
+    * Intermediate goods
+    lab var c1960 "(+) INITIAL INVENTORY OF GOODS NOT PROUDCED BY THE FIRM - PRODUCTION COSTS"
+    lab var c1970 "(+) NET PURCHASES OF DOMESTIC GOODS NOT PRODUCED BY THE FIRM - PRODUCTION COSTS"
+    lab var c1977 "(+) NET PURCHASES OF DOMESTIC GOODS FROM THE FIRM'S INDUSTRY - PRODUCTION COSTS"
+    lab var c1980 "(+) IMPORTS NOT PRODUCED BY THE FIRM - PRODUCTION COSTS"
+    lab var c1990 "(+) IMPORTS NOT PRODUCED BY THE FIRM - ADMIN EXPENSES"
+    lab var c2000 "(-) FINAL INVENTORY OF GOOD NOT PRODUCED BY THE FIRM - PRODUCTION COSTS"
+    * Raw materials
+    lab var c2010 "(+) INITIAL INVENTORY OF RAW MATERIAL - PRODUCTION COSTS"
+    lab var c2020 "(+) NET DOMESTIC PURCHES OF RAW MATERIAL - PRODUCTION COSTS"
+    lab var c2030 "(+) IMPORTS OF RAW MATERIAL - PRODUCTION COSTS"
+    lab var c2040 "(-) FINAL INVENTORY OF RAW MATERIAL - PRODUCTION COSTS"
+    * Products in process
+    lab var c2240 "(+) INITIAL INVENTORY OF PRODUCTS IN PROCESS - PRODUCTION COSTS"
+    lab var c2250 "(-) FINAL INVENTORY OF PRODUCTS IN PROCESS - PRODUCTION COSTS"
+    * Products finished
+    lab var c2260 "(+) INITIAL INVENTORY OF FINISHED PRODUCTS - PRODUCTION COSTS"
+    lab var c2270 "(-) FINAL INVENTORY OF FINISHED PRODUCTS - PRODUCTION COSTS"
+    lab var c2274 "(+) ADJUSTMENT COSTS - PRODUCTION COSTS"
+    lab var c2278 "(=) TOTAL COST OF SALES - PRODUCTION COSTS"
 
+* Production costs by category
+gen double cost_prod_interm_goods = c1960 + c1970 + c1977 + c1980 + c1990 - c2000
+gen double cost_prod_raw_materials = c2010 + c2020 + c2030 - c2040
+gen double cost_prod_in_process = c2240 - c2250
+gen double cost_prod_finished = c2260 - c2270
+gen double cost_prod_adjustment = c2274
+gen double cost_prod_total = cost_prod_interm_goods + cost_prod_raw_materials + cost_prod_in_process + cost_prod_finished + cost_prod_adjustment
 
+* Informative variables on imports
+gen double info_imports_interm_goods = c1980 + c1990 // already included in "cost_prod_interm_goods", not to be double counted
+gen double info_imports_raw_materials = c2030 // already included in "cost_prod_raw_materials", not to be double counted
 
-* Old sum
-gen double tot_R_calc_old = c1800 + c1810 + c1820 + c1830 + c1840 + c1850 + c1860 + c1870 + c1880 + c1890 + c1900 + c1920
+* Format and keep only total (for now)
+format %20.2f cost_prod_* info_imports_*
+drop cost_prod_interm_goods cost_prod_raw_materials cost_prod_in_process cost_prod_finished cost_prod_adjustment info*
 
+////////////////////////////////////////////////////////////////////////////////
 
-gen double tot_R = c1930
-gen double tot_R_calc = c1800 + c1810 + c1820 + c1830 + c1840 + c1850 + c1860 + c1870 + c1910 + c1920
-gen same = round(tot_R,0.01)==round(tot_R_calc_old,0.01)
-gen same_new = round(tot_R,0.01)==round(tot_R_calc,0.01)
-tab same same_new
+* LABOUR
 
+* Generate variables available only in normal tax files
+cap gen c2320 = 0, after(c2310)
+cap gen c2330 = 0, after(c2320)
+cap gen c2340 = 0, after(c2330)
+cap gen c2350 = 0, after(c2340)
 
+* Generate new variables available only in amendments
+cap gen c2752 = 0, after(c2370)
+cap gen c2754 = 0, after(c2752)
 
+* c2330 should always be zero, haven't accounted for it not being zero yet
+cap assert c2330==0
+if _rc {
+    di "c2330 [(+) PAYMENTS COMPLETED TO OUTSOURCING] is not zero. What now?"
+} 
+drop c2330
 
+* Label variables
+    * IESS-regulated labour costs
+    lab var c2280 "(+) WAGES, SALARIES AND OTHER TAXABLE REMUNERATIONS - PRODUCTION COSTS"
+    lab var c2290 "(+) WAGES, SALARIES AND OTHER TAXABLE REMUNERATIONS - ADMIN EXPENSES"
+    lab var c2300 "(+) SOCIAL BENEFITS AND OTHER NON-TAXABLE COMPENSATION - PRODUCTION COSTS"
+    lab var c2310 "(+) SOCIAL BENEFITS AND OTHER NON-TAXABLE COMPENSATION - ADMIN EXPENSES"
+    lab var c2320 "(+) WAGES, SALARIES AND OTHER TAXABLE REMUNERATIONS"
+    lab var c2340 "(+) WAGES, SALARIES AND OTHER TAXABLE REMUNERATIONS OUTSOURCING"
+    lab var c2350 "(+) OTHER REMUNERATIONS TO OUTSOURCING"
+    lab var c2360 "(+) CONTRIBUTION TO SOCIAL SECURITY (INCLUDING RESERVE FUND) - PRODUCTION COSTS"
+    lab var c2370 "(+) CONTRIBUTION TO SOCIAL SECURITY (INCLUDING RESERVE FUND) - ADMIN EXPENSES"
+    lab var c2752 "(+) OTHER EXPENSES ON EMPLOYEE BENEFITS - PRODUCTION COSTS"
+    lab var c2754 "(+) OTHER EXPENSES ON EMPLOYEE BENEFITS - ADMIN EXPENSES"
+    * Professional fees for domestic contractors
+    lab var c2380 "(+) PROFESSIONAL FEES AND EXPENSES - PRODUCTION COSTS"
+    lab var c2390 "(+) PROFESSIONAL FEES AND EXPENSES - ADMIN EXPENSES"
+    * Professional fees for foreign contractors
+    lab var c2400 "(+) FEES TO FOREIGNERS FOR ONE-TIME EXPENSES - PRODUCTION COSTS"
+    lab var c2410 "(+) FEES TO FOREIGNERS FOR ONE-TIME EXPENSES - ADMIN EXPENSES"
 
+* Ensure external wages are included to c2290 when they're not zero
+replace c2290 = cond(c2320!=0 | c2340!=0 | c2350!=0, ///
+                     c2320    + c2340    + c2350,    c2290)
+drop c2320 c2340 c2350 // considered in c2290
 
+* Labour costs by category
+gen double cost_labour_iess = c2280 + c2290 + c2300 + c2310 + c2360 + c2370 + c2752 + c2754
+gen double cost_labour_prof_fees_dom = c2380 + c2390
+gen double cost_labour_prof_fees_imp = c2400 + c2410
+gen double cost_labour_total = cost_labour_iess + cost_labour_prof_fees_dom + cost_labour_prof_fees_imp
 
+* Format and keep only total (for now)
+format %20.2f cost_labour*
+drop cost_labour_iess cost_labour_prof_fees_dom cost_labour_prof_fees_imp
 
+////////////////////////////////////////////////////////////////////////////////
 
+* OTHER OPERATIONAL COSTS
 
+* Generate variables available only in normal tax files
+cap gen c2110 = 0, before(c2420)
+cap gen c2180 = 0, after(c2110)
+cap gen c2190 = 0, after(c2180)
+cap gen c2200 = 0, after(c2190)
+cap gen c2210 = 0, after(c2200)
+cap gen c2220 = 0, after(c2210)
+cap gen c2230 = 0, after(c2220)
+cap gen c2460 = 0, after(c2230)
+cap gen c2470 = 0, after(c2660)
 
+* Generate new variables available only in amendments
+cap gen c2772 = 0, after(c2770)
+cap gen c2774 = 0, after(c2772)
+cap gen c2776 = 0, after(c2774)
+cap gen c2785 = 0, after(c2776)
+cap gen c2786 = 0, after(c2785)
+cap gen c2788 = 0, after(c2786)
+cap gen c2801 = 0, after(c2788)
+cap gen c2804 = 0, after(c2801)
+cap gen c2815 = 0, after(c2804)
+cap gen c2803 = 0, after(c2815)
 
-*** TAX BALANCE
-* PROFITS/LOSSES
-cap lab var c3420 "(=) PROFIT THIS PERIOD"
-cap lab var c3430 "(=) LOSS THIS PERIOD"
-cap lab var c3440 "(-) 15% EMPLOYEES' SHARE"
-cap lab var c3450 "(-) 100% EXEMPT DIVIDENDS RECEIVED"
-cap lab var c3460 "(-) 100% OTHER EXEMPT RENTS"
-cap lab var c3470 "(+) NON-DEDUCTIBLE DOMESTIC EXPENSES"
-cap lab var c3480 "(+) NON-DEDUCTIBLE EXPENSES FROM ABROAD"
-cap lab var c3490 "(+) EXPENSES TO GENERATE EXEMPT INCOME"
-cap lab var c3500 "(+) EMPLOYEES' SHARE ATTRIBUTABLE TO EXEMPT INCOME"
-cap lab var c3510 "(-) AMORTIZATION OF LOSSES FROM PREVIOUS YEARS"
-cap lab var c3520 "(-) DEDUCTIONS FOR SPECIAL LAWS"
-cap lab var c3530 "(+) ADJUSTMENT FOR TRANSFER PRICING"
-cap lab var c3540 "(-) DEDUCTION FOR NET INCREASE IN EMPLOYEES"
-cap lab var c3550 "(-) DEDUCTION FOR PAYMENT TO WORKERS WITH DISABILITIES"
-cap lab var c3560 "(=) TAXABLE PROFIT"
-cap lab var c3570 "(=) LOSS"
+* c2180 & c2190 should always be zero, haven't accounted for them not being zero yet
+cap assert c2180==0 & c2190==0
+if _rc {
+    di "c2180 [(=) COMMERCIAL RENT - HOME] or c2190 [(=) COMMERCIAL RENT - ABROAD] are not zero. What now?"
+} 
+drop c2180 c2190
 
-* TAXES
-cap lab var c3580 "(-) PROFITS FOR REINVESTMENT AND CAPITALIZATION"
-cap lab var c3590 "(=) BALANCE OF TAXABLE INCOME"
-cap lab var c3600 "(=) TOTAL TAX INCIDENCE"
-cap lab var c3615 "(-) ADVANCE CORRESPONDING TO THE CURRENT FISCAL PERIOD"
-cap lab var c3612 "(=) INCOME TAX GREATER THAN THE ONE DETERMINED IN ADVANCE"
-cap lab var c3613 "(=) TAX CREDIT ORIGINATED BY ADVANCE (APPLICABLE FOR YEARS BEFORE 2010 ONLY)"
-cap lab var c3614 "(+) BALANCE OF ADVANCE PENDING PAYMENT"
-cap lab var c3620 "(-) TAX WITHHOLDINGS REALIZED IN THE FISCAL YEAR"
-cap lab var c3630 "(-) WITHHOLDINGS FOR ADVANCED DIVIDENDS"
-cap lab var c3640 "(-) WITHHOLDINGS FOR INCOME FROM ABROAD WITH THE RIGHT TO A TAX CREDIT"        
-cap lab var c3645 "(-) INCOME TAX ADVANCE PAID FOR PUBLIC WORKS"        
-cap lab var c3650 "(-) TAX CREDIT FROM PREVIOUS YEARS"
-cap lab var c3655 "(-) TAX CREDIT GENERATED FROM TAX ON FOREIGN EXCHANGE OUTFLOWS"
-cap lab var c3660 "(-) TAX EXEMPTION AND CREDIT FROM SPECIAL LAWS"
-cap lab var c3680 "(=) INCOME TAX TO PAY"
-cap lab var c3690 "(=) BALANCE IN FAVOR OF THE TAXPAYER"
-cap lab var c3710 "(=) ADVANCE FOR NEXT YEAR"
-cap lab var c3692 "( ) ADVANCE TO PAY - FIRST QUOTA""
-cap lab var c3694 "( ) ADVANCE TO PAY - SECOND QUOTA""
-cap lab var c3696 "( ) ADVANCE TO PAY - BALANCE TO BE SETTLED IN NEXT YEAR'S STATEMENT"
+* c2460 should already be accounted for
+cap assert round(c2460)==round(c2910) if c2460>0
+if _rc {
+    di "c2460 [(+) COMMISSIONS OF COMPANIES] is not accounted for. What now?"
+}
+drop c2460
 
+* Label variables
+    lab var c2110 "(+) OTHER PRODUCTION EXPENSES"
+    * Real estate rent
+    lab var c2200 "(+) REAL ESTATE RENT FOR NATURAL PERSONS PROPERTIES - PRODUCTION COST"
+    lab var c2210 "(+) REAL ESTATE RENT FOR NATURAL PERSONS PROPERTIES - ADMIN EXPENSES"
+    lab var c2220 "(+) REAL ESTATE RENT FOR COMPANIES PROPERTIES - PRODUCTION COST"
+    lab var c2230 "(+) REAL ESTATE RENT FOR COMPANIES PROPERTIES - ADMIN EXPENSES"
+    lab var c2420 "(=) REAL ESTATE RENT - PRODUCTION COSTS" // c2200 + c2220
+    lab var c2430 "(=) REAL ESTATE RENT - ADMIN EXPENSES" // c2210 + c2230
+    * Maintenance and repairs
+    lab var c2440 "(+) MAINTENANCE AND REPAIRS - PRODUCTION COSTS"
+    lab var c2450 "(+) MAINTENANCE AND REPAIRS - ADMIN EXPENSES"
+    * Fuel and lubricants
+    lab var c2640 "(+) FUEL AND LUBRICANTS - PRODUCTION COSTS"
+    lab var c2650 "(=) FUEL AND LUBRICANTS - ADMIN EXPENSES" // c2660 + c2470
+    lab var c2660 "(+) FUEL - ADMIN EXPENSES"
+    lab var c2470 "(+) LUBRICANTS - ADMIN EXPENSES"
+    * Marketing
+    lab var c2670 "(+) MARKETING - PRODUCTION COSTS"
+    lab var c2680 "(+) MARKETING - ADMIN EXPENSES"
+    * Supplies, materials, and replacements
+    lab var c2690 "(+) SUPPLIES AND MATERIALS - PRODUCTION COSTS"
+    lab var c2700 "(+) SUPPLIES AND MATERIALS - ADMIN EXPENSES"
+    * Transportation
+    lab var c2710 "(+) TRANSPORTATION - PRODUCTION COSTS"
+    lab var c2720 "(+) TRANSPORTATION - ADMIN EXPENSES"
+    * Provisions
+    lab var c2730 "(+) PROVISIONS - FOR RETIREMENT - PRODUCTION COSTS"
+    lab var c2740 "(+) PROVISIONS - FOR RETIREMENT - ADMIN EXPENSES"
+    lab var c2750 "(+) PROVISIONS - FOR EVICTION - PRODUCTION COSTS"
+    lab var c2760 "(+) PROVISIONS - FOR EVICTION - ADMIN EXPENSES"
+    lab var c2770 "(+) PROVISIONS - FOR UNCOLLECTIBLE ACCOUNTS - ADMIN EXPENSES"
+    lab var c2774 "(+) PROVISIONS - FOR NET INVENTORY REALIZATION - PRODUCTION COSTS"
+    lab var c2772 "(+) PROVISIONS - FOR NET INVENTORY REALIZATION - ADMIN EXPENSES"
+    lab var c2788 "(+) PROVISIONS - FOR ASSET VALUE DETERIORATION - PRODUCTION COSTS"
+    lab var c2776 "(+) PROVISIONS - FOR ASSET VALUE DETERIORATION - ADMIN EXPENSES"
+    lab var c2785 "(+) PROVISIONS - FOR ASSET VALUE DETERIORATION - PRODUCTION COSTS"
+    lab var c2786 "(+) PROVISIONS - FOR ASSET VALUE DETERIORATION - ADMIN EXPENSES"
+    lab var c2801 "(+) PROVISIONS - FOR ASSET VALUE DETERIORATION - ADMIN EXPENSES"
+    lab var c2804 "(+) PROVISIONS - FOR ASSET VALUE DETERIORATION - PRODUCTION COSTS"
+    lab var c2815 "(+) PROVISIONS - FOR ASSET VALUE DETERIORATION - ADMIN EXPENSES"
+    lab var c2803 "(=) PROVISIONS - FOR ALL ASSET VALUE DETERIORATION"  // c2770 + c2774 + c2772 + c2788 + c2776 + c2785 + c2786 + c2801 + c2804 + c2815
+    lab var c2780 "(+) PROVISIONS - OTHER PROVISIONS - PRODUCTION COSTS"
+    lab var c2790 "(+) PROVISIONS - OTHER PROVISIONS - ADMIN EXPENSES"
+    lab var c2800 "(=) TOTAL PROVISIONS" // c2730 + c2740 + c2750 + c2760 + c2803 + c2780 + c2790
+    * Commercial rent
+    lab var c2810 "(+) COMMERCIAL RENT - HOME - PRODUCTION COSTS"
+    lab var c2820 "(+) COMMERCIAL RENT - HOME - ADMIN EXPENSES"
+    lab var c2830 "(+) COMMERCIAL RENT - ABROAD - PRODUCTION COSTS"
+    lab var c2840 "(+) COMMERCIAL RENT - ABROAD - ADMIN EXPENSES"
+    lab var c2850 "(=) COMMERCIAL RENT - PRODUCTION COSTS" // c2810 + c2830
+    lab var c2860 "(=) COMMERCIAL RENT - ADMIN EXPENSES" // c2820 + c2840
+    * Commissions
+    lab var c2870 "(+) COMMISSIONS - HOME - PRODUCTION COSTS"
+    lab var c2880 "(+) COMMISSIONS - HOME - ADMIN EXPENSES"
+    lab var c2890 "(+) COMMISSIONS - ABROAD - PRODUCTION COSTS"
+    lab var c2900 "(+) COMMISSIONS - ABROAD - ADMIN EXPENSES"
+    lab var c2910 "(=) TOTAL COMMISSIONS" // c2870 + c2880 + c2890 + c2900
+
+* Regenerate sum variables to use instead of single cells when the values of the
+* at least one single cell is different than 0. Keep the given sum instead.
+replace c2420 = cond(c2200!=0 | c2220!=0, ///
+                     c2200    + c2220   , c2420)
+drop c2200 c2220 // considered in c2420
+replace c2430 = cond(c2210!=0 | c2230!=0, ///
+                     c2210    + c2230   , c2430)
+drop c2210 c2230 // considered in c2430
+replace c2650 = cond(c2470!=0 | c2660!=0, ///
+                     c2470    + c2660,    c2650)
+drop c2470 c2660 // considered in c2650
+replace c2803 = cond(c2770!=0 | c2774!=0 | c2772!=0 | c2788!=0 | c2776!=0 | c2785!=0 | c2786!=0 | c2801!=0 | c2804!=0 | c2815!=0, ///
+                     c2770    + c2774    + c2772    + c2788    + c2776    + c2785    + c2786    + c2801    + c2804    + c2815   , c2803)
+drop c2770 c2774 c2772 c2788 c2776 c2785 c2786 c2801 c2804 c2815 // considered in c2803
+replace c2800 = cond(c2730!=0 | c2740!=0 | c2750!=0 | c2760!=0 | c2803!=0 | c2780!=0 | c2790!=0, ///
+                     c2730    + c2740    + c2750    + c2760    + c2803    + c2780    + c2790,    c2800)
+drop c2730 c2740 c2750 c2760 c2803 c2780 c2790 // considered in c2800
+replace c2850 = cond(c2810!=0 | c2830!=0, ///
+                     c2810    + c2830,    c2850)
+drop c2810 c2830 // considered in c2850
+replace c2860 = cond(c2820!=0 | c2840!=0, ///
+                     c2820    + c2840,    c2860)
+drop c2820 c2840 // considered in c2860
+replace c2910 = cond(c2870!=0 | c2880!=0 | c2890!=0 | c2900!=0, ///
+                     c2870    + c2880    + c2890    + c2900,    c2910)
+drop c2870 c2880 c2890 c2900 // considered in c2910
+
+* Other operational costs by category
+gen double cost_ops_rent = c2420 + c2430 + c2850 + c2860
+gen double cost_ops_maintenance = c2440 + c2450
+gen double cost_ops_fuel = c2640 + c2650
+gen double cost_ops_marketing = c2670 + c2680
+gen double cost_ops_supplies = c2690 + c2700
+gen double cost_ops_transportation = c2710 + c2720
+gen double cost_ops_provisions = c2800
+gen double cost_ops_commissions = c2910
+gen double cost_ops_other = c2110
+gen double cost_ops_total = cost_ops_rent + cost_ops_maintenance + cost_ops_fuel + ///
+                            cost_ops_marketing + cost_ops_supplies + cost_ops_transportation + ///
+                            cost_ops_provisions + cost_ops_commissions + cost_ops_other
+
+* Format and keep only total (for now)
+format %20.2f cost_ops*
+drop cost_ops_rent cost_ops_maintenance cost_ops_fuel cost_ops_marketing cost_ops_supplies ///
+cost_ops_transportation cost_ops_provisions cost_ops_commissions cost_ops_other
+
+////////////////////////////////////////////////////////////////////////////////
+
+* INTERESTS
+
+* Generate variables available only in normal tax files
+cap gen c2500 = 0, before(c3040)
+cap gen c2510 = 0, after(c2500)
+
+* Label variables
+cap gen c2500 = 0
+cap gen c2510 = 0
+lab var c2920 "(+) INTEREST PAID TO BANKS - HOME - PRODUCTION COSTS"
+lab var c2930 "(+) INTEREST PAID TO BANKS - HOME - ADMIN EXPENSES"
+lab var c2940 "(+) INTEREST PAID TO BANKS - ABROAD - PRODUCTION COSTS"
+lab var c2950 "(+) INTEREST PAID TO BANKS - ABROAD - ADMIN EXPENSES"
+lab var c2960 "(+) INTEREST PAID TO OTHERS - RELATED HOME - PRODUCTION COSTS"
+lab var c2970 "(+) INTEREST PAID TO OTHERS - RELATED HOME - ADMIN EXPENSES"
+lab var c2980 "(+) INTEREST PAID TO OTHERS - RELATED ABROAD - PRODUCTION COSTS"
+lab var c2990 "(+) INTEREST PAID TO OTHERS - RELATED ABROAD - ADMIN EXPENSES"
+lab var c3000 "(+) INTEREST PAID TO OTHERS - NOT RELATED HOME - PRODUCTION COSTS"
+lab var c3010 "(+) INTEREST PAID TO OTHERS - NOT RELATED HOME - ADMIN EXPENSES"
+lab var c3020 "(+) INTEREST PAID TO OTHERS - NOT RELATED ABROAD - PRODUCTION COSTS"
+lab var c3030 "(+) INTEREST PAID TO OTHERS - NOT RELATED ABROAD - ADMIN EXPENSES"
+lab var c2500 "(=) INTEREST PAID TO OTHERS - HOME" // c2960 + c2970 + c3000 + c3010
+lab var c2510 "(=) INTEREST PAID TO OTHERS - ABROAD" // c2980 + c2990 + c3020 + c3030
+lab var c3040 "(=) TOTAL INTEREST PAID" // c2920 + c2930 + c2940 + c2950 + c2960 + c2970 + c2980 + c2990 + c3000 + c3010 + c3020 + c3030
+
+* Regenerate sum variables to use instead of single cells when the values of the
+* at least one single cell is different than 0. Keep the given sum instead.
+replace c2500 = cond(c2960!=0 | c2970!=0 | c3000!=0 | c3010!=0, ///
+                     c2960    + c2970    + c3000    + c3010,    c2500)
+drop c2960 c2970 c3000 c3010 // considered in c2500
+replace c2510 = cond(c2980!=0 | c2990!=0 | c3020!=0 | c3030!=0, ///
+                     c2980    + c2990    + c3020    + c3030,    c2510)
+drop c2980 c2990 c3020 c3030 // considered in c2510
+replace c3040 = cond(c2920!=0 | c2930!=0 | c2940!=0 | c2950!=0 | c2500!=0 | c2510!=0, ///
+                     c2920    + c2930    + c2940    + c2950    + c2500    + c2510,    c3040)
+drop c2920 c2930 c2940 c2950 c2500 c2510 // considered in c3040
+
+* Interest costs
+gen double cost_interest_total = c3040
+
+* Format and keep only total (for now)
+format %20.2f cost_interest*
+
+////////////////////////////////////////////////////////////////////////////////
+
+* LOSSES
+
+* Generate variables available only in normal tax files
+cap gen c2570 = 0, before(c3050)
+cap gen c2580 = 0, after(c2570)
+
+* Generate new variables available only in amendments
+cap gen c3114 = 0, after(c3110)
+cap gen c3116 = 0, after(c3114)
+
+* c2570 & c2580 should always be zero, haven't accounted for them not being zero yet
+cap assert round(c2570 + c2580)==round(c3090) if (c2570>0 | c2580>0) 
+if _rc {
+    di "c2570 [(+) LOSS FROM SALES OF FIXED ASSETS] or c2580 [(+) LOSS FROM SALES OF DEFERRED ASSETS] are not accounted for in c3090. What now?"
+} 
+drop c2570 c2580
+
+* Label variables
+lab var c3050 "(+) LOSS FROM SALE OF ASSETS - RELATED - PRODUCTION COSTS"
+lab var c3060 "(+) LOSS FROM SALE OF ASSETS - RELATED - ADMIN EXPENSES"
+lab var c3070 "(+) LOSS FROM SALE OF ASSETS - NOT RELATED - PRODUCTION COSTS"
+lab var c3080 "(+) LOSS FROM SALE OF ASSETS - NOT RELATED - ADMIN EXPENSES"
+lab var c3090 "(=) TOTAL LOSS FROM SALE OF ASSETS" // c3050 + c3060 + c3070 + c3080
+lab var c3100 "(+) OTHER LOSSES - PRODUCTION COSTS"
+lab var c3110 "(+) OTHER LOSSES - ADMIN EXPENSES"
+lab var c3114 "(+) SHRINKAGES - PRODUCTION COSTS"
+lab var c3116 "(+) SHRINKAGES - ADMIN EXPENSES"
+
+* Regenerate sum variables to use instead of single cells when the values of the
+* at least one single cell is different than 0. Keep the given sum instead.
+replace c3090 = cond(c3050!=0 | c3060!=0 | c3070!=0 | c3080!=0, ///
+                     c3050    + c3060    + c3070    + c3080,    c3090)
+drop c3050 c3060 c3070 c3080 // considered in c3090
+
+* Losses costs
+gen double cost_losses_total = c3090 + c3100 + c3110 + c3114 + c3116
+
+* Format and keep only total (for now)
+format %20.2f cost_losses*
 
 
 ////////////////////////////////////////////////////////////////////////////////
-**#                 2 - DEFINE LOCALS WITH ALL COST/REVENUE CELLS
+
+* DEPRECIATIONS AND AMORTIZATIONS
+
+* Generate variables available only in normal tax files
+cap gen c2490 = 0, before(c3270)
+
+* Generate new variables available only in amendments
+cap gen c3242 = 0, after(c3250)
+cap gen c3254 = 0, after(c3242)
+cap gen c3256 = 0, after(c3254)
+cap gen c3264 = 0, after(c3256)
+cap gen c3266 = 0, after(c3264)
+cap gen c3268 = 0, after(c3266)
+
+* Label variables
+    * Depreciations
+    lab var c3220 "(+) DEPRECIATION OF FIXED ASSETS - ACCELERATED - PRODUCTION COSTS"
+    lab var c3230 "(+) DEPRECIATION OF FIXED ASSETS - ACCELERATED - ADMIN EXPENSES"
+    lab var c3240 "(+) DEPRECIATION OF FIXED ASSETS - NON ACCELERATED - PRODUCTION COSTS"
+    lab var c3250 "(+) DEPRECIATION OF FIXED ASSETS - NON ACCELERATED - ADMIN EXPENSES"
+    lab var c3260 "(=) TOTAL DEPRECIATION OF FIXED ASSETS" // c3220 + c3230 + c3240 + c3250
+    lab var c3254 "(+) DEPRECIATION OF REVALUATION OF FIXED ASSETS - PRODUCTION COSTS"
+    lab var c3256 "(+) DEPRECIATION OF REVALUATION OF FIXED ASSETS - ADMIN EXPENSES"
+    lab var c3242 "(=) DEPRECIATION OF REVALUATION OF FIXED ASSETS" // c3254 + c3256
+    lab var c3264 "(+) DEPRECIATION OF BIOLOGICAL ASSETS - PRODUCTION COSTS"
+    lab var c3266 "(+) DEPRECIATION OF INVESTMENTS PROPERTIES - ADMIN EXPENSES"
+    * Amortizations
+    lab var c3268 "(+) AMORTIZATION OF RESEARCH AND DEVELOPMENT ASSETS - PRODUCTION COSTS"
+    lab var c3270 "(+) AMORTIZATION - PRODUCTION COSTS"
+    lab var c3280 "(+) AMORTIZATION - ADMIN EXPENSES"
+    lab var c2490 "(+) AMORTIZATION OF BALANCE DEBTOR CURRENCY EXCHANGE"
+
+* Regenerate sum variables to use instead of single cells when the values of the
+* at least one single cell is different than 0. Keep the given sum instead.
+replace c3260 = cond(c3220!=0 | c3230!=0 | c3240!=0 | c3250!=0, ///
+                     c3220    + c3230    + c3240    + c3250,    c3260)
+drop c3220 c3230 c3240 c3250 // considered in c3260
+replace c3242 = cond(c3254!=0 | c3256!=0, ///
+                     c3254    + c3256   , c3242)
+drop c3254 c3256 // considered in c3260
+
+* Turns out c3242 and c3260 are the same
+gen double dep_FA_net = c3260
+replace dep_FA_net = c3242 if c3242!=0
+drop c3242 c3260
+
+* Depreciations and amortizations costs
+gen double cost_depreciations_total = dep_FA_net + c3264 + c3266
+gen double cost_amortizations_total = c3268 + c3270 + c3280 + c2490
+
+* Format and keep only total (for now)
+format %20.2f cost_dep* cost_amo*
+drop dep_FA_net
+
 ////////////////////////////////////////////////////////////////////////////////
 
-local revenue_F101  c1800+c1810+c1820+c1830+c1840+c1850+c1870+c1880+c1890+c1900+c1920
+* OTHER NON-OPERATIONAL COSTS
 
+* Generate variables available only in normal tax files
+cap gen c2480 = 0, before(c3120)
+cap gen c2520 = 0, after(c2480)
+cap gen c2530 = 0, after(c2520)
+cap gen c2540 = 0, after(c2530)
+cap gen c2550 = 0, after(c2540)
+cap gen c2560 = 0, after(c2550)
+cap gen c2590 = 0, after(c2560)
+cap gen c2600 = 0, after(c2590)
 
-local costs_F101    c1960 +c1970 +c1980 +c1990 -c2000 +c2010 +c2020 +c2030 ///
-                   -c2040 +c2240 -c2250 +c2260 -c2270 +c2280 +c2290 +c2300 ///
-                   +c2310 +c2360 +c2370 +c2380 +c2390 +c2400 +c2410 +c2420 ///
-                   +c2430 +c2440 +c2450 +c2640 +c2650 +c2670 +c2680 +c2690 ///
-                   +c2700 +c2710 +c2720 +c2730 +c2740 +c2750 +c2760 +c2770 ///
-                   +c2780 +c2790 +c2810 +c2820 +c2830 +c2840 +c2870 +c2880 ///
-                   +c2890 +c2900 +c2920 +c2930 +c2940 +c2950 +c2960 +c2970 ///
-                   +c2980 +c2990 +c3000 +c3010 +c3020 +c3030 +c3050 +c3060 ///
-                   +c3070 ///
-                        +c3080 +c3100 +c3110/*3114   3116*/+c3120 +c3130 +c3140 ///
-                        +c3150 +c3160 +c3170/*3171*/+c3180 +c3190 +c3200/*3202*/ ///
-                        +c3210/*3212   3214*/+c3220/*3221   3222   3224   3225*/ ///
-                       /*3227   3228*/+c3230/*3231   3232   3234   3237   3238*/ ///
-                       /*3239*/+c3240 +c3250/*3254   3256   3261   3264   3266*/ ///
-                       /*3268*/+c3270/*3271   3272   3274   3275   3277   3278*/ ///
-                        +c3280 +c3290 +c3300 +c3310 +c3320 +c3330 +c3340
- 
+* Generate new variables available only in amendments
+cap gen c2701 = 0, before(c3170)
+cap gen c2892 = 0, after(c2701)
+cap gen c2893 = 0, after(c2892)
+cap gen c2898 = 0, after(c2893)
+cap gen c2899 = 0, after(c2898)
+cap gen c2902 = 0, after(c2899)
+cap gen c3171 = 0, after(c2902)
+cap gen c3202 = 0, after(c3171)
+cap gen c3212 = 0, after(c3202)
+cap gen c3214 = 0, after(c3212)
+cap gen c3008 = 0, after(c3214)
+cap gen c3012 = 0, after(c3008)
+
+* c2600 should always be zero, haven't accounted for it not being zero yet
+cap assert c2600==0
+if _rc {
+    di "c2600 [(=) TOTAL NON-OPERATIONAL EXPENSES] is not zero. What now?"
+} 
+drop c2600
+
+* Label variables
+    * Random stuff from old forms
+    lab var c2480 "(+) NOTARY AND REPRESENTATIVES FEES"
+    lab var c2520 "(+) REIMBURSEMENT EXPENSES - HOME"
+    lab var c2530 "(+) REIMBURSEMENT EXPENSES - ABROAD"
+    lab var c2540 "(+) OTHER EXPENSES - HOME"
+    lab var c2550 "(+) OTHER EXPENSES - ABROAD"
+    lab var c2560 "(+) OTHER ADMINISTRATIVE SALES-RELATED EXPENSES"
+    lab var c2590 "(+) OTHER NON-OPERATIONAL EXPENSES"
+    * Random stuff from new forms
+    lab var c2701 "(+) UNSURE"
+    lab var c2892 "(+) UNSURE - PRODUCTION COSTS"
+    lab var c2893 "(+) UNSURE - ADMIN EXPENSES"
+    lab var c2898 "(+) UNSURE - PRODUCTION COSTS"
+    lab var c2899 "(+) UNSURE - ADMIN EXPENSES"
+    lab var c2902 "(=) UNSURE - ADMIN EXPENSES" // c2892 + c2893
+    lab var c3202 "(+) UNSURE"
+    lab var c3008 "(+) OTHER NON-OPERATIONAL EXPENSES"
+    lab var c3012 "(+) UNSURE"
+    * Other administrative costs
+    lab var c3120 "(+) INSURANCE AND REINSURANCE INTERMEDIARIES - PRODUCTION COSTS"
+    lab var c3130 "(+) INSURANCE AND REINSURANCE INTERMEDIARIES - ADMIN EXPENSES"
+    lab var c3140 "(+) INDIRECT COSTS INCURRED FROM ABROAD BY RELATED PARTIES - PRODUCTION COSTS"
+    lab var c3150 "(+) INDIRECT COSTS INCURRED FROM ABROAD BY RELATED PARTIES - ADMIN EXPENSES"
+    lab var c3160 "(+) ADMINISTRATIVE COSTS - ADMIN EXPENSES"
+    lab var c3171 "(+) TAXES, CONTRIBUTIONS AND OTHER - PRODUCTION COSTS"
+    lab var c3170 "(+) TAXES, CONTRIBUTIONS AND OTHER - ADMIN EXPENSES"
+    lab var c3180 "(+) TRAVEL EXPENSES - PRODUCTION COSTS"
+    lab var c3190 "(+) TRAVEL EXPENSES - ADMIN EXPENSES"
+    lab var c3200 "(+) VAT INCURRED ON COSTS OR EXPENSES - PRODUCTION COSTS"
+    lab var c3210 "(+) VAT INCURRED ON COSTS OR EXPENSES - ADMIN EXPENSES"
+    lab var c3212 "(+) OTHER EXPENSES - PRODUCTION COSTS"
+    lab var c3214 "(+) OTHER EXPENSES - ADMIN EXPENSES"
+    * Public and other services/goods
+    lab var c3290 "(+) PUBLIC SERVICES - PRODUCTION COSTS"
+    lab var c3300 "(+) PUBLIC SERVICES - ADMIN EXPENSES"
+    lab var c3310 "(+) PAYMENT FOR OTHER SERVICES - PRODUCTION COSTS"
+    lab var c3320 "(+) PAYMENT FOR OTHER SERVICES - ADMIN EXPENSES"
+    lab var c3330 "(+) PAYMENT FOR OTHER GOODS - PRODUCTION COSTS"
+    lab var c3340 "(+) PAYMENT FOR OTHER GOODS - ADMIN EXPENSES"
+    lab var c3350 "(=) OTHER PRODUCTION COSTS" // c3310 + c3330
+
+* Regenerate sum variables to use instead of single cells when the values of the
+* at least one single cell is different than 0. Keep the given sum instead.
+replace c2902 = cond(c2892!=0 | c2893!=0, ///
+                     c2892    + c2893,    c2902)
+drop c2892 c2893 // considered in c2902
+replace c3350 = cond(c3310!=0 | c3330!=0, ///
+                     c3310    + c3330,    c3350)
+drop c3310 c3330 // considered in c3350
+
+* Other costs
+gen double cost_admin_total = c2480 + c2520 + c2530 + c2540 + c2550 + c2560 + c2590 + ///
+                              c2701 + c2898 + c2899 + c2902 + c3202 + c3008 + c3012 + ///
+                              c3120 + c3130 + c3140 + c3150 + c3160 + c3171 + ///
+                              c3170 + c3180 + c3190 + c3200 + c3210 + c3212 + c3214 + ///
+                              c3290 + c3300 + c3320 + c3340 + c3350
 
 ////////////////////////////////////////////////////////////////////////////////
-**#                     3 - GENERATE VARIABLES OUT OF CELLS
-////////////////////////////////////////////////////////////////////////////////
-
-* Revenue
-gen     revenuve = c1930
-gen     revenue_calculated = `revenue_F101_08_14' if inlist(year,2008,2009,2010,2011,2012,2013,2014)
-replace revenue_calculated = `revenue_F101_15_17' if inlist(year,2015,2016,2017)
-
-* Cost
-gen     cost = c3380
-gen     cost_calculated = `costs_F101_08_12' if inlist(year,2008,2009,2010,2011,2012)
-replace cost_calculated = `costs_F101_13_14' if inlist(year,2013,2014)
-replace cost_calculated = `costs_F101_15_17' if inlist(year,2015,2016,2017)
-
-* Profit
-gen profit = c3420
-gen loss   = c3430
-assert c3420==0 if c3430!=0 // check that only one of the two is inputed
-assert c3430==0 if c3420!=0 // check that only one of the two is inputed
-gen result = profit-loss
-gen result_calculated = revenue-cost
 
 
-/*
+* Sums and informative items
+cap gen c2610 = 0
+cap gen c2620 = 0
+cap gen c2630 = 0
+lab var c3360 "(=) TOTAL COSTS"                                             // Total - PRODUCTION COSTS
+lab var c3370 "(=) TOTAL EXPENDITURES"                                      // Total - ADMIN EXPENSES
+lab var c3380 "(=) TOTAL COSTS AND EXPENDITURES" // (c3360+c3370)
+lab var c3390 "( ) LOSS OF INVENTORY"
+lab var c3400 "( ) PAYMENT FOR REIMBURSEMENT PAID AS REIMBURSER"
+lab var c3410 "( ) PAYMENT FOR REIMBURSEMENT PAID AS INTERMEDIARY"
+lab var c2610 "(=) NET PROFIT BEFORE 'CCL'" // don't know what CCL is, no need
+lab var c2620 "(=) PROFIT BEFORE 'CCL'" // don't know what CCL is, no need
+lab var c2630 "(=) PROFIT BEFORE 'CCL'" // don't know what CCL is, no need
+drop c2610 c2620 c2630 // no need for intermediate results
+drop c3390 c3400 c3410 // no need for informative cells
 
-*** Cost
+* Create new sums
+gen double tot_C = c3360
+gen double tot_C_calc = cost_prod_total + cost_labour_total + cost_ops_total + ///
+                            cost_interest_total + cost_losses_total + cost_depreciations_total + ///
+                            cost_amortizations_total + cost_admin_total
+format %20.2f tot_*
+lab var tot_C      "(=) TOTAL COSTS - REPORTED"
+lab var tot_C_calc "(=) TOTAL COSTS - CALCULATED"
+cap drop c1* 
+cap drop c2*
+cap drop c3*
+cap drop c4*
+cap drop c5*
+cap drop c6*
+cap drop c7*
+cap drop c8*
+cap drop c9*
 
-        ** Total
-        gen      cost = c3380
-        gen      cost_calculated = `costs_F101_08_11' if inlist(year,2008,2009,2010,2011)
-        replace  cost_calculated = `costs_F101_12'    if inlist(year,2012)
-        replace  cost_calculated = `costs_F101_13_14' if inlist(year,2013,2014)
-        replace  cost_calculated = `costs_F101_15_17' if inlist(year,2015,2016,2017)
+ gen same = round(tot_C)==round(tot_C_calc)
 
-        ** Purchases of domestic good and raw materials
-        gen cost_domestic_purchase_goods = c1970
-        gen cost_domestic_purchase_raw   = c2020
-        //gen cost_domestic_purchase       = cost_domestic_purchase_goods+cost_domestic_purchase_raw
-        
-        ** Imports of services, goods and raw materials (imports_tf)
-        gen cost_imports_goods    = c1980+c1990+c2030        
-        gen cost_imports_services = c2400+c2410         
-        //gen cost_imports          = imports_goods + imports_services
-        
-        ** Other production costs
-        gen      cost_professional_fee    = c2380+c2390
-                        
-        gen      cost_rent = c2420+c2430 if inlist(year,2008,2009,2010,2011,2012,2013,2014)
-        replace  cost_rent =       c2430 if inlist(year,2015,2016,2017)
-        
-        gen      cost_maintenance = c2440+c2450
-        
-        gen      cost_fuel = c2640+c2650
-        
-        gen      cost_marketing = c2670+c2680 if inlist(year,2008,2009,2010,2011,2012,2013,2014)
-        replace  cost_marketing =       c2680 if inlist(year,2015,2016,2017)
-
-        gen      cost_supplies = c2690+c2700
-        
-        gen      cost_transportation = c2710+c2720 if inlist(year,2008,2009,2010,2011,2012,2013,2014)
-        replace  cost_transportation =       c2720 if inlist(year,2015,2016,2017)
-        
-        gen      cost_commercial_leasing = c2810+c2820+c2830+c2840             if inlist(year,2008,2009,2010,2011,2012,2013,2014)
-        replace  cost_commercial_leasing =       c2820      +c2840+c2931+c2933 if inlist(year,2015,2016,2017)
-        
-        gen      cost_commissions = c2870                                    +c2880            +c2890+c2900 if inlist(year,2008,2009,2010,2011,2012,2013,2014)
-        replace  cost_commissions =       c2871+c2872+c2874+c2875+c2877+c2878      +c2881+c2882             if inlist(year,2015,2016,2017)
-        
-        gen      cost_insurance = c3120+c3130
-        
-        gen      cost_indirect_thirdparty = c3140+c3150
-
-        gen      cost_administrative = c3160
-        
-        gen      cost_travel = c3180+c3190 if inlist(year,2008,2009,2010,2011,2012,2013,2014)
-        replace  cost_travel =       c3190 if inlist(year,2015,2016,2017)
-        
-        gen      cost_public_services = c3290+c3300
-        
-        gen      cost_payment_others =                                                                         c3310+c3320+c3330+c3340 if inlist(year,2008,2009,2010,2011,2012,2013,2014)
-        replace  cost_payment_others = c2884+c2886+c2888+c2889+c2892+c2893+c2895+c2896+c2898+c2899+c3212+c3214                         if inlist(year,2015,2016,2017)
-        
-//         gen      cost_other_production = cost_professional_fee + ///
-//                                          cost_rent + ///
-//                                          cost_maintenance + ///
-//                                          cost_fuel + ///
-//                                          cost_marketing + ///
-//                                          cost_supplies + ///
-//                                          cost_transportation + ///
-//                                          cost_commercial_leasing + ///
-//                                          cost_commissions + ///
-//                                          cost_insurance + ///
-//                                          cost_indirect_thirdparty + ///
-//                                          cost_administrative + ///
-//                                          cost_travel + ///
-//                                          cost_public_services + ///
-//                                          cost_payment_others + ///
-                                         
-        ** Financial costs        
-        gen      cost_financial        =                                                                                                 c2920+c2930+c2940                     +c2950                           +c2960+c2970+c2980+c2990+c3000             +c3010+c3020+c3030+c3050+c3060+c3070+c3080+c3100+c3110               +c3220                                         +c3230                                           +c3240+c3250                                           +c3270                                     +c3280                                                        if inlist(year,2008,2009,2010,2011,2012)
-        replace  cost_financial        =       c2772+c2774+c2776+c2778                                                                  +c2920+c2930+c2940                     +c2950                           +c2960+c2970+c2980+c2990+c3000             +c3010+c3020+c3030+c3050+c3060+c3070+c3080+c3100+c3110+c3114+c3116+c3220                                         +c3230                                           +c3240+c3250+c3254+c3256      +c3264+c3266+c3268+c3270                                     +c3280                                                        if inlist(year,2013,2014)
-        replace  cost_financial        = c2701+c2772+c2774            +c2781+c2783+c2785+c2786+c2788+c2789+c2792+c2794+c2797+c2799+c2801      +c2930      +c2942+c2946+c2949+c2950+c2952+c2954+c2957+c2959      +c2970      +c2990      +c3002+c3004+c3010+c3030+c3050+c3060+c3070+c3080                  +c3114+c3116+c3220+c3221+c3222+c3224+c3225+c3227+c3228+c3230+c3231+c3232+c3234+c3237+c3238+c3239+c3240+c3250+c3254+c3256+c3261+c3264                  +c3271+c3272+c3274+c3275+c3277+c3278      +c3281+c3282+c3284+c3285+c3286+c3288+c3289                if inlist(year,2015,2016,2017)
-
-
-        ** Labor costs
-        gen     cost_labor = c2280+c2290+c2300+c2310+c2360+c2370             if inlist(year,2008,2009,2010,2011,2012,2013,2014)
-        replace cost_labor = c2280+c2290+c2300+c2310+c2360+c2370+c2752+c2754 if inlist(year,2015,2016,2017)
-
-        //                         *Subitems of labor costs
-        //                         generate labor_wages_salaries_tf          = c2280+c2290
-        //                         generate labor_social_benefits_tf         = c2300+c2310
-        //                         generate labor_contrib_social_security_tf = c2360+c2370
-
-        ** Other costs (inventories, provisions, taxes)
-
-        gen     cost_other = c2730+c2740+c2750+c2760+c2770+c2780+c2790                                                                              +c3170      +c3200      +c3210 if inlist(year,2008,2009,2010,2011,2012)
-        replace cost_other = c2730+c2740+c2750+c2760+c2770+c2780+c2790                                                                              +c3170      +c3200      +c3210 if inlist(year,2013,2014)
-        replace cost_other = c2730+c2740+c2750+c2760+c2770+c2780+c2790+c2804+c2805+c2807+c2808+c2811+c2813+c2815+c2817+c2819+c2821+c3006+c3008+c3012+c3170+c3171+c3200+c3202+c3210 if inlist(year,2015,2016,2017)
-
-                                        
-                *Components of "Other costs" (to test which components was changing)
-                
-                        *Labor provisions (for retirement)
-                        gen     cost_other_labor_provisions = c2730 + c2740                                
-                        
-                        *Other provisions (rather than labor)
-                        gen     cost_other_other_provisions = c2750+c2760+c2770+c2780+c2790                                                             if inlist(year,2008,2009,2010,2011,2012)
-                        replace cost_other_other_provisions = c2750+c2760+c2770+c2780+c2790                                                             if inlist(year,2013,2014)
-                        replace cost_other_other_provisions = c2750+c2760+c2770+c2780+c2790+c2804+c2805+c2807+c2808+c2811+c2813+c2815+c2817+c2819+c2821 if inlist(year,2015,2016,2017)        
-                        
-                        *Expenditures to government
-                        gen     cost_other_govt = c3170      +c3200      +c3210                if inlist(year,2008,2009,2010,2011,2012,2013,2014)
-                        replace cost_other_govt = c3170+c3171+c3200+c3202+c3210                if inlist(year,2015,2016,2017)
-                                
-                                *Tax expenditures
-                                gen     cost_other_govt_taxes        = c3170
-                                
-        ** Inventories costs
-        
-                generate cost_inventories        = c1960-c2000 +c2010-c2040 +c2240-c2250 +c2260-c2270                           if inlist(year,2008,2009,2010,2011,2012,2013,2014)
-                replace  cost_inventories        = c1960-c2000 +c2010-c2040 +c2240-c2250 +c2260-c2270+c2272+c2274        if inlist(year,2015,2016,2017)        
-
-        ** Assign the discrepancy between "total cost" and the sum of its sub-items to "other costs"
-                
-                generate cost_disp             = cost - cost_calculated
-                replace  cost_other             = cost_other + cost_disp             if cost_disp > 0
-                replace  cost_calculated = cost_calculated + cost_disp if cost_disp > 0
-
-                drop cost_disp
-                
-        ** Check to verify the variables add up to the calculated total costs
-
-                generate cost_calc     = domestic_purchase + imports_tf + cost_other_production + cost_financial + cost_labor + cost_other + cost_inventories
-                generate cost_disp     = abs(cost_calc - cost_calculated)
-                generate cost_disp_rel = cond(cost_disp==0, 0, abs(cost_calc - cost_calculated) / max(cost_calc, cost_calculated))
-                
-                qui count if cost_disp_rel > 0.01 & cost_disp > 5
-                if (r(N) == 0) {
-                        di as result "`form' (cost): calculation correct!"
-                }
-                else if (r(N) > 0) {
-                        di as result "`form' (cost): `r(N)' cases with relative(discrepancy) > 1% & abs(discrepancy) > 5"
-                }
-                
-                drop cost_disp* cost_calc
-
-*** Revenue
-
-        ** Total
-                gen revenuve = c1930
-                gen      revenue_calculated = `revenue_F101_08_12' if inlist(year,2008,2009,2010,2011,2012)
-                replace  revenue_calculated = `revenue_F101_13_14' if inlist(year,2013,2014)
-                replace  revenue_calculated = `revenue_F101_15_17' if inlist(year,2015,2016,2017)
-
-        ** Export revenue
-                generate exports_tf        = c1820                                if inlist(year,2008,2009,2010,2011,2012,2013,2014)
-                replace  exports_tf        = c1820+c1822        if inlist(year,2015,2016,2017)
-        
-        ** Domestic revenue
-                generate revenue_domestic        = c1800      +c1810                  +c1860        if inlist(year,2008,2009,2010,2011,2012,2013,2014)
-                replace  revenue_domestic        = c1800+c1802+c1810+c1812+c1826+c1836+c1860 if inlist(year,2015,2016,2017)
-        
-        ** Financial revenue
-                generate revenue_financial = c1840                                                                                                                                                                                                                                                                                             if inlist(year,2008,2009,2010,2011,2012,2013,2014)        
-                replace  revenue_financial =       c1843+c1846+c1848+c1851+c1853+c1908+c1911+c5001+c5003+c5005+c5007+c5009+c5011+c5013+c5015+c5017+c5019+c5021+c5023+c5025+c5027+c5029+c5031+c5033+c5035+c5037  if inlist(year,2015,2016,2017)        
-        
-        ** Dividends revenue
-                generate revenue_dividends = c1870
-                
-        ** Other revenue
-                generate revenue_other =       c1830                  +c1850                                                            +c1880                        +c1890                        +c1900                  +c1920                                if inlist(year,2008,2009,2010,2011,2012)
-                replace  revenue_other =       c1830                  +c1850                                                            +c1880                        +c1890                        +c1900                                                                          if inlist(year,2013,2014)
-                replace  revenue_other = c1821+c1830+c1831+c1838+c1841+c1850+c1856+c1858+c1861+c1863+c1866+c1868+c1871+c1873+c1876+c1878+c1880+c1881+c1883+c1886+c1888+c1890+c1891+c1893+c1896+c1898+c1900+c1901+c1903+c1906      +c5039+c5041  if inlist(year,2015,2016,2017)
-                
-                *Subitem "Other exempted income"
-                generate revenue_other_exempted_income = c1920        if inlist(year,2008,2009,2010,2011,2012)
-                replace  revenue_other_exempted_income = 0                        if inlist(year,2013,2014,2015,2016,2017)
-                
-        ** Assign the discrepancy between "total revenue" and the sum of its sub-items to "other revenue"
-                
-                generate revenue_disp              = rev - revenue_calculated
-                replace  revenue_other      = revenue_other + revenue_disp            if revenue_disp > 0
-                replace  revenue_calculated = revenue_calculated + revenue_disp if revenue_disp > 0
-                
-                drop revenue_disp
-                        
-        ** Check to verify the variables add up to total revenue
-        
-                generate revenue_calc     = exports_tf + revenue_domestic + revenue_financial + revenue_dividends + revenue_other
-                generate revenue_disp     = abs(revenue_calc - revenue_calculated)
-                generate revenue_disp_rel = cond(revenue_disp == 0, 0, abs(revenue_calc - revenue_calculated) / max(revenue_calc, revenue_calculated))
-                
-                qui count if revenue_disp_rel > 0.01 & revenue_disp > 5
-                if (r(N) == 0) {
-                        di as result "`form' (revenue): calculation correct!"
-                }
-                else if (r(N) > 0) {
-                        di as result "`form' (revenue): `r(N)' cases with relative(discrepancy) > 1% & abs(discrepancy) > 5"
-                }
-                
-                drop revenue_disp* revenue_calc
-
-*** Profit
-        gen profit = c3420
-        gen loss   = c3430
-        assert c3420==0 if c3430!=0
-        assert c3430==0 if c3420!=0
-        gen result = profit-loss
-        gen result_calculated = revenue-cost
-*/
+tab same
 
 end
