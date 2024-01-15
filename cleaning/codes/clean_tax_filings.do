@@ -5,8 +5,14 @@
 * Description:      This do file appends all raw F101 and F102 data, adds labels,
 *                   renames variables, and deals with duplicates.
 * Input:
-*                   $ecuRaw/F101/
-*                   $ecuRaw/F102/
+*                   $ecuRaw/F101/F101_2008_jul2012.dta
+*                   $ecuRaw/F101/F101_2009_jul2012.dta
+*                   $ecuRaw/F101/F101_2010_jul2012.dta
+*                   $ecuRaw/F101/F101_2011_jul2012.dta
+*                   $ecuRaw/F102/F102_2008_jul2012.dta
+*                   $ecuRaw/F102/F102_2009_jul2012.dta
+*                   $ecuRaw/F102/F102_2010_jul2012.dta
+*                   $ecuRaw/F102/F102_2011_jul2012.dta
 * Output:
 *                   $pathCle/output/tax_filings.csv
 ////////////////////////////////////////////////////////////////////////////////
@@ -16,268 +22,230 @@ quietly do "~/data/transactions_ecuador/3_mivazq/Masters_Thesis/setup.do"
 * Create folder to store intermediate cleaned files
 cap mkdir "$pathCle/input/cleaning_intermediate/F10X/"
 
+* Retrieve filenames 
+local files "F101_2008_jul2012.dta F101_2009_jul2012.dta F101_2010_jul2012.dta F101_2011_jul2012.dta F102_2008_jul2012.dta F102_2009_jul2012.dta F102_2010_jul2012.dta F102_2011_jul2012.dta"
+    
 * Iterate over files
-foreach form in F101 F102 {
-      
-    local norm_files:  dir "$ecuRaw/`form'/" files "*.dta"
-    local amend_files: dir "$ecuRaw/`form'/amendments" files "*.dta" 
-  
-    foreach type in norm amend {
-        foreach file of local `type'_files {
-
-            * Load file
-            local path = cond("`type'"=="norm", "$ecuRaw/`form'", "$ecuRaw/`form'/amendments")
-            local start = strpos("`file'", "20")
-            local year = substr("`file'", `start', 4) // based on filename
-            
-            * Process only files in 2008-2011 timeframe
-            if `year'<2008 | `year'>2011 {
-                continue
-            }
-            
-            di as input "Now processing `form' filers for '`type'' file of year `year'"
-            use "`path'/`file'", clear
-
-            * Rename and keep needed variables (use capture in case they are already fine)
-            cap rename id id_sri
-            cap rename anio_fiscal year
-            cap rename fecha_recepcion sub_date
-            cap rename c_* c* // all tax cells
-            keep  id_sri year sub_date c1* c2* c3* c4* c5* c6* c7* c8* c9*
-            order c1* c2* c3* c4* c5* c6* c7* c8* c9*, sequential
-            order id_sri year sub_date, first
-            
-            * Destring submission date (if string), drop missings
-            cap conf str# var sub_date
-            if !_rc {
-                gen temp = clock(sub_date, "YMDhms"), after(sub_date)
-                drop sub_date
-                rename temp sub_date
-            }
-            drop if missing(sub_date)
-
-            * Destring year (if string), assert correctness
-            cap conf str# var year
-            if !_rc {
-                qui destring year, replace
-            }
-            assert year==`year'
-
-            * Destring tax form items that are strings
-            ds c*, has(type string)
-            foreach var in `r(varlist)' {
-                replace `var' = subinstr(`var', ",", ".", 1) // replaces spanish decimals
-                destring `var', replace
-            }
-            
-            * Keep only relevant tax cells
-            if "`form'"=="F101" {
-                gen asset_fix_prope = c480
-                gen asset_fix_ships = c490
-                gen asset_fix_furni = c500
-                gen asset_fix_machi = c510
-                gen asset_fix_compu = c540
-                gen asset_fix_vehic = c550
-                gen asset_fix_other = c560
-                gen asset_fix_acdep = cond(c580<0,-c580,c580) // Accumulated depreciation, to be interpreted in negative. Some might already have filled negative value
-                gen asset_fix_lands = c590
-                gen asset_fix_unfin = c650
-                gen asset_fix_total = c690 // Should equal the sum of all the above
-                gen revenue_total            = c1930
-                gen revenue_export           = c1820
-                gen revenue_other_abroad     = c1830
-                gen cost_total               = c3380
-                gen cost_labor               = c2280+c2290+c2300+c2310+c2360+c2370
-                gen cost_imports_goods_produ = c1980
-                gen cost_imports_goods_admin = c1990
-                gen cost_imports_rawmat      = c2030
-                gen cost_imports_services_produ    = c2400
-                gen cost_imports_services_admin    = c2410
-                gen cost_asset_fix_dep_produ = c3220+c3240
-                gen cost_asset_fix_dep_admin = c3230+c3250
-                gen profit                   = c3420
-                gen loss                     = c3430
-            }
-            if "`form'"=="F102" {
-                gen asset_fix_prope = c420
-                gen asset_fix_ships = c430
-                gen asset_fix_furni = c440
-                gen asset_fix_machi = c450
-                gen asset_fix_compu = c480
-                gen asset_fix_vehic = c490
-                gen asset_fix_other = c500
-                gen asset_fix_acdep = cond(c530<0,-c530,c530) // Accumulated depreciation, to be interpreted in negative. Some might already have filled negative value
-                gen asset_fix_lands = c540
-                gen asset_fix_unfin = c550
-                gen asset_fix_total = c560 // Should equal the sum of all the above
-                gen revenue_total            = c1440
-                gen revenue_export           = c1370
-                gen revenue_other_abroad     = c1380
-                gen cost_total               = c2760
-                gen cost_labor               = c1620+c1630+c1650+c1660+c1670+c1680
-                gen cost_imports_goods_produ = c1490
-                gen cost_imports_goods_admin = c1500
-                gen cost_imports_rawmat      = c1550
-                gen cost_imports_services_produ    = c1730
-                gen cost_imports_services_admin    = c1740
-                gen cost_asset_fix_dep_produ = c2510+c2550
-                gen cost_asset_fix_dep_admin = c2520+c2560
-                gen profit                   = c2800
-                gen loss                     = c2810
-            }
-            drop c1* c2* c3* c4* c5* c6* c7* c8* c9*
-            
-            * Drop all zero revenue and zero cost filings, they are useless for us:
-            * Most cases are individuals filing only short-form F102 (personal)
-            drop if (revenue_total==0 & cost_total==0)
-
-            * Increase storage precision and reformat identifying variables
-            recast double _all
-            format id_sri   %20.0g
-            format year     %10.0g
-            format sub_date %tc
-
-            * Save
-            save "$pathCle/input/cleaning_intermediate/F10X/`form'_`type'_`year'.dta", replace
-        }
-    }
-    
-    * Combine all files
-    local `form'_files: dir "$pathCle/input/cleaning_intermediate/F10X/" files "`form'_*_20*.dta"
-    clear all
-    foreach file of local `form'_files {
-        qui append using "$pathCle/input/cleaning_intermediate/F10X/`file'"
-    }
-    
-    * Check identifying variables are not missing nor zeros
-    foreach var of varlist id_sri year sub_date {
-        assert `var'!=0 & !missing(`var')
-    }
-    
-    * Fix IDs (should already be fine, but just to be sure)
-    replaceID id_sri
-
-    * Deal with duplicates (id-year)
-        * First drop exact duplicates to reduce number observations instantly
-        gduplicates drop
+foreach file of local files {
         
-        * Eliminate remaining duplicates by keeping latest submission only
-        gsort id_sri year sub_date
-        by id_sri year: gegen last_time = max(sub_date)
-        format last_time %tc
-        keep if sub_date==last_time
-        drop last_time
+    * Get information from file name
+    local form = substr("`file'", 1, 4)
+    local strt = strpos("`file'", "20") // look for "20" in filename
+    local year = substr("`file'", `strt', 4)
+        
+    di as input "Now processing `form' filers for file of year `year'"
+    use "$ecuRaw/`form'/`file'", clear
     
-//         * Eliminate remaining duplicates by dropping "empty" filings
-//         gduplicates tag id_sri year, gen(dup)
-//         egen nvar_zero = anycount(revenue_total cost_total profit loss), values(0)
-//         drop if nvar_zero==4 & dup>0 // if both are zero both will ge dropped, I don't care
-//         drop dup nvar_zero
-//        
-        * Deal with last duplicates on a case by case basis (after visual inspection)
-        gduplicates tag id_sri year, gen(dup)
-        //br if dup>0
-            * F101
-            if "`form'"=="F101" {
-                drop if id_sri==28353 & year==2008 & dofc(sub_date) == date("10jun2009", "DMY") & round(revenue_total)==500 // drop "lowest" entry
-                drop if id_sri==36419 & year==2008 & dofc(sub_date) == date("27apr2009", "DMY") & cost_total==0 // drop entry with missing cost & profit
-                replace revenue_total = 8423.79 if id_sri==61717 & year==2008 & dofc(sub_date) == date("09feb2009", "DMY") & revenue_total==0 // copy revenue from other entry
-                drop if id_sri==61717 & year==2008 & dofc(sub_date) == date("09feb2009", "DMY") & cost_total==0 // drop entry with missing cost & profit
-                drop if id_sri==127612 & year==2008 & dofc(sub_date) == date("09feb2012", "DMY") & round(cost_total)==108714 // drop "lowest" entry
-                drop if id_sri==351863 & year==2008 & dofc(sub_date) == date("12apr2009", "DMY") & round(cost_total)==459 // drop "lowest" entry
-                drop if id_sri==78712 & year==2009 & dofc(sub_date) == date("22apr2010", "DMY") & round(asset_fix_total)==0 // drop "lowest" entry
-            }
-            * F102
-            if "`form'"=="F102" {
-                drop if id_sri==386966 & year==2008 & dofc(sub_date) == date("22oct2009", "DMY") & round(revenue_total)==796609 // drop "lowest" entry
-                drop if id_sri==533429 & year==2008 & dofc(sub_date) == date("19feb2009", "DMY") & cost_total==0 // drop entry with missing cost & profit
-                drop if id_sri==579723 & year==2009 & dofc(sub_date) == date("10mar2010", "DMY") & round(revenue_total)==195127 // drop "lowest" entry
-                drop if id_sri==653149 & year==2009 & dofc(sub_date) == date("09jul2012", "DMY") & round(revenue_total)==371997 // drop "lowest" entry
-                drop if id_sri==666923 & year==2009 & dofc(sub_date) == date("02jun2010", "DMY") & round(revenue_total)==344110 // drop wrong entry
-                drop if id_sri==672484 & year==2008 & dofc(sub_date) == date("18mar2009", "DMY") & round(revenue_total)==207756 // drop "lowest" entry
-                drop if id_sri==730147 & year==2008 & dofc(sub_date) == date("18mar2009", "DMY") & profit==0 // drop wrong entry
-            }
-        drop dup
+    * First drop if all zeros
+    drop if declaracion_cero=="S"
     
-    * Ensure no more duplicates
-    isid id_sri year
+    * Rename and keep needed variables (use capture in case they are already fine)
+    cap rename id id_sri
+    cap rename anio_fiscal year
+    cap rename fecha_recepcion sub_date
+    keep  id_sri year sub_date c1* c2* c3* c4* c5* c6* c7* c8* c9*
+    order c1* c2* c3* c4* c5* c6* c7* c8* c9*, sequential
+    order id_sri year sub_date, first
     
-    * Label source form
-    gen form = "`form'", before(id_sri)
+    * Destring submission date (if string), drop missings
+    cap conf str# var sub_date
+    if !_rc {
+        gen temp = clock(sub_date, "YMDhms"), after(sub_date)
+        drop sub_date
+        rename temp sub_date
+    }
+    drop if missing(sub_date)
     
-    * Fix case in F102 where costs are obviously wrong (misplaced decimal/thousand separator)
-    replace cost_total = cost_total/1000 if id_sri == 592050 & year==2009 & form=="F102"
+    * Destring year (if string), assert correctness
+    cap conf str# var year
+    if !_rc {
+        qui destring year, replace
+    }
+    assert year==`year'
     
-    * Fix case in F101 where someone reported costs with negative sign
-    replace cost_total = -cost_total if id_sri == 12348952 & year==2017 & form=="F101"
+    * Destring tax form items that are strings
+    ds c*, has(type string)
+    foreach var in `r(varlist)' {
+        replace `var' = subinstr(`var', ",", ".", 1) // replaces spanish decimals
+        destring `var', replace
+    } 
     
-    * Assert values are always zero or greater
-    assert (revenue_total>=0 & cost_total>=0 & profit>=0 & loss>=0)
+    * If F102, run script to rename variables
+    if "`form'"=="F102" {
+        di "Now renaming variables for file `file'"
+        renameF102toF101
+        di "Renaming done for file `file'"
+    }
     
-//     * Round values to full dullar
-//     foreach var of varlist asset_* revenue_* cost_* profit loss {
-//         replace `var' = round(`var')
-//     }
+    * Run script to create variables from tax items
+    di "Now constructing variables for file `file'"
+    defineF10X
+    di "Constructing done for file `file'"
     
-    * Generate result since profit/loss are not well defined
-    gen double result = revenue_total - cost_total
-    format result %20.0g
+    * Drop all zero revenue and zero cost filings, they are useless for us:
+    * Most cases are individuals filing only short-form F102 (personal)
+    drop if (tot_R_calc==0 & tot_C_calc==0)
+    
+    * Increase storage precision and reformat identifying variables
+    recast double _all
+    format id_sri   %20.0g
+    format year     %10.0g
+    format sub_date %tc
+    ds id_sri year sub_date, not
+    format `r(varlist)' %20.2f
+    
+    * Save
+    save "$pathCle/input/cleaning_intermediate/F10X/`form'_`year'.dta", replace
 
-    * Check results
-    count if result == 0
-    count if result == 0 & profit == 0 & loss == 0
-    count if result >  0
-    count if result >  0 & profit >  0 & loss == 0
-    count if result <  0
-    count if result <  0 & profit == 0 & loss >  0
-    
-    * Inspect big discrepancies
-    gen     sign = "+" if result >  0
-    replace sign = "-" if result <  0
-    replace sign = "0" if result == 0
-    gen     disc = result - profit if sign == "+"
-    replace disc = -result - loss  if sign == "-"
-    //br if (disc > 1 | disc < -1) & !missing(disc)
-    
-    * It's interesting to see that the biggest problems always come from 2008/2009 
-    * observations, exactly the years for which we don't have amendments. It was 
-    * a good decision to use the amendment data as well.
-    drop profit loss sign disc
-    
-    * Save dataset
-    save "$pathCle/input/cleaning_intermediate/F10X/full_`form'.dta", replace
-    
 }
 
-* Combine F101 and F102 forms 
-use $pathCle/input/cleaning_intermediate/F10X/full_F101.dta, clear
-append using $pathCle/input/cleaning_intermediate/F10X/full_F102.dta
-gsort id_sri year form 
+* Combine all files
+local files: dir "$pathCle/input/cleaning_intermediate/F10X/" files "F10*_20*.dta"
+clear all
+foreach file of local files {
+    qui append using "$pathCle/input/cleaning_intermediate/F10X/`file'"
+}
 
-* Deal with duplicates by simply applying the same criterion as above, keep last filing
-by id_sri year: gegen last_time = max(sub_date)
-format last_time %tc
-keep if sub_date==last_time
-drop last_time sub_date
+* Check identifying variables are not missing nor zeros
+foreach var of varlist id_sri year sub_date {
+    assert `var'!=0 & !missing(`var')
+}
 
-* For the 2 remaining duplicate pairs we keep the F101 filing
-gduplicates tag id_sri year, gen(dup)
-drop if form!="F101" & dup==1
-drop dup
+* Fix IDs (should already be fine, but just to be sure)
+replaceID id_sri
 
-* Ensure no more duplicates
-isid id_sri year
+* For now we drop all cases with negative calculated total values. I may change
+* this and adjust by correcting the provision/depreciation/etc. amounts to breakeven
+    * Assets
+    drop if tot_CA_calc<0 | tot_FA_calc<0 | tot_DA_calc<0 | tot_LA_calc<0
+    assert tot_A_calc>=0
+    drop tot_A_calc_non_neg tot_CA_prov tot_FA_acdp tot_DA_acam tot_LA_prov
+    
+    * Revenue
+    assert tot_R_calc>=0
+    
+    * Costs
+    drop if cost_prod_total<0
+    assert tot_C_calc>=0
+    
+* Now we can also drop zeros (if a firm has zero assets, zero revenue, or zero costs)
+drop if tot_C_calc==0 | tot_R_calc==0 | tot_A_calc==0
 
-* Merge public oil exporter
-assert form == "F101" if inlist(id_sri, 128357, 129098)
-replace id_sri = 129098 if id_sri == 128357
-gcollapse (sum) asset_* revenue_* cost_* result, by(form id_sri year)
+* Drop reported values, we don't care
+drop tot_CA tot_FA tot_DA tot_LA tot_A tot_R tot_CC tot_CE tot_C
 
-* Replace negative total assets with zero (will fix later if possible)
-replace asset_fix_total = 0 if asset_fix_total<0
+* I will either use FA or FA+DA or A. Definitely not CA or LA
+gen double tot_AFA_calc = tot_FA_calc + tot_DA_calc, after(tot_FA_calc)
+gen double tot_TFA_calc = tot_FA_calc, after(tot_FA_calc)
+drop tot_CA_calc tot_LA_calc tot_FA_calc tot_DA_calc
+lab var tot_AFA_calc "(=) TOTAL ALL FIXED ASSETS - CALCULATED"
+lab var tot_TFA_calc "(=) TOTAL TANGIBLE FIXED ASSETS - CALCULATED"
 
-* Format
-format id_sri year revenue_total cost_total result %20.0g
+* Drop if labor cost is zero. It's not credible and not viable for our estimation
+drop if cost_labour_total==0
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+* Deal with duplicates (id-year)
+    * First drop exact duplicates to reduce number observations instantly
+    gduplicates drop
+    
+    * Eliminate remaining duplicates by keeping latest submission only
+    gsort id_sri year sub_date
+    by id_sri year: gegen last_time = max(sub_date)
+    format last_time %tc
+    keep if sub_date==last_time
+    drop last_time sub_date
+    
+    * There are still a few exact duplicates that are not considered exact due to rounding
+    * I can now round all the variables and recalculate totals for costs
+    ds id_sri year, not
+    foreach var in `r(varlist)' {
+        replace `var' = round(`var')
+    }
+    format `r(varlist)' %20.0g
+    
+    * Recalculate totals for costs
+    replace tot_C_calc = cost_prod_total + cost_labour_total + cost_ops_total + ///
+                         cost_interest_total + cost_losses_total + cost_depreciations_total + ///
+                         cost_amortizations_total + cost_admin_total
+                         
+    * Now drop duplicates again
+    gduplicates drop
+    
+    * Now I only consider variables calculated by me
+    ds tot_CA tot_FA tot_DA tot_LA tot_A tot_R tot_CC tot_CE tot_C, not
+    gduplicates drop `r(varlist)', force
+
+    * At this point I will simply keep the observations with the highest number
+    * of non-zero cells
+    gduplicates tag id_sri year, gen(dup)
+    ds id_sri year dup, not
+    egen nvar_zero = anycount(`r(varlist)'), values(0)
+    bys id_sri year: egen max_zero = max(nvar_zero)
+    bys id_sri year: egen min_zero = min(nvar_zero)
+    drop if nvar_zero==max_zero & dup>0 & max_zero!=min_zero
+    drop dup nvar_zero max_zero min_zero
+    
+    * For the remaining cases, I take the rows with the highest total values
+    gduplicates tag id_sri year, gen(dup)
+    egen rowtot = rowtotal(tot_A_calc tot_R_calc tot_C_calc)
+    bys id_sri year: egen max_rowtot = max(rowtot)
+    bys id_sri year: egen min_rowtot = min(rowtot)
+    drop if rowtot==min_rowtot & dup>0 & max_rowtot!=min_rowtot
+    drop dup rowtot max_rowtot min_rowtot
+    
+    * For the very last it's very hard to tell which one we want to keep, it's just
+    * about stuff moving around different accounts and the totals being identical
+    * I randomly drop one here
+    gduplicates tag id_sri year, gen(dup)
+    set seed 15012024
+    gen rnd = runiform()
+    bys id_sri year: egen max_rnd = max(rnd)
+    drop if rnd!=max_rnd & dup>0
+    drop dup rnd max_rnd
+    
+    * Merge public oil exporter
+    replace id_sri = 129098 if id_sri == 128357
+    ds id_sri year, not
+    gcollapse (sum) `r(varlist)', by(id_sri year)
+    
+    * Ensure that finally we have unique entries
+    isid id_sri year
+
+
+
+
+
+* Make panel (all firms all 4 years)
+fillin id_sri year
+
+
+br id_sri year tot_CA_calc tot_FA_calc tot_DA_calc tot_LA_calc tot_A_calc tot_R_calc tot_C_calc if tot_CA_calc<0
+
+
+
+
+
+
+
+* Generate result (profit/loss)
+gen double result = tot_R_calc - tot_C_calc
+format result %20.0g
 
 * Save
 compress

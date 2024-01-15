@@ -9,7 +9,7 @@
 *                   Tax filing positions in form of variables
 ////////////////////////////////////////////////////////////////////////////////
 
-program define defineF101, rclass
+program define defineF10X, rclass
     version 18
     
 // Note: since tax forms varied slightly across years not all variables exist 
@@ -22,16 +22,6 @@ program define defineF101, rclass
 //  (=) are cells that are a results of calculation based on other cells
 //  ( ) are cells that contain informative numbers, not used for any calculation
 //  (?) don't know
-
-
-
-use "/home/mivazq/data/transactions_ecuador/1_rawdata/F101/F101_2008_jul2012.dta" , clear
-
-
-
-* First let's reorder the variables
-order c*, seq
-
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -114,7 +104,7 @@ lab var tot_CA      "(=) TOTAL CURRENT ASSETS - REPORTED"
 lab var tot_CA_calc "(=) TOTAL CURRENT ASSETS - CALCULATED"
 lab var tot_CA_prov "(-) PROVISIONS ON TOTAL CURRENT ASSETS"
 drop c170 c180 c190 c280 c290 c300 c310 c320 c330 c360 c370 c380 c390 c400 c410 c420 c460 c470
-
+di as input "CURRENT ASSETS done"
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -182,6 +172,7 @@ lab var tot_FA      "(=) TOTAL FIXED ASSETS - REPORTED"
 lab var tot_FA_calc "(=) TOTAL FIXED ASSETS - CALCULATED"
 lab var tot_FA_acdp "(-) ACCUMULATED DEPRECIATION ON TOTAL FIXED ASSETS"
 drop c490 c530 c540 c550 c560 c570 c590 c650 c680 c690
+di as input "FIXED ASSETS done"
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -219,6 +210,7 @@ lab var tot_DA      "(=) TOTAL DEFERRED ASSETS - REPORTED"
 lab var tot_DA_calc "(=) TOTAL DEFERRED ASSETS - CALCULATED"
 lab var tot_DA_acam "(-) ACCUMULATED AMORTIZATION ON TOTAL DEFERRED ASSETS"
 drop c700 c730 c740 c750 c760 c770 c780
+di as input "DEFERRED ASSETS done"
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -272,6 +264,7 @@ lab var tot_LA      "(=) TOTAL LONG TERM ASSETS - REPORTED"
 lab var tot_LA_calc "(=) TOTAL LONG TERM ASSETS - CALCULATED"
 lab var tot_LA_prov "(-) PROVISIONS ON TOTAL LONG TERM ASSETS"
 drop c850_new c900 c910 c920 c1010 c1070 lt_assets
+di as input "LONG TERM ASSETS done"
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -296,6 +289,7 @@ lab var tot_A_calc         "(=) TOTAL ASSETS - CALCULATED"
 lab var tot_A_calc_non_neg "(=) TOTAL ASSETS - CALCULATED (negative totals converted to 0)"
 assert tot_A_calc_non_neg>=0
 drop c1080
+di as input "TOTAL ASSETS done"
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -306,7 +300,7 @@ drop c1080
 *** LIABILITIES & EQUITIES
 
 * We don't need liabilities and equity at all. Drop them all.
-drop c930-c1790 // for F102 they will already be deleted
+cap drop c930-c1790 // for F102 they will already be deleted
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -348,6 +342,7 @@ format %20.2f tot_*
 lab var tot_R      "(=) TOTAL ASSETS - REPORTED"
 lab var tot_R_calc "(=) TOTAL ASSETS - CALCULATED"
 drop c1800 c1810 c1820 c1830 c1840 c1850 c1860 c1870 c1910 c1920 c1930
+di as input "INCOME done"
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -367,7 +362,7 @@ foreach var of varlist c1960-c3410 {
         drop `var'
     }
 }
-
+                    
 ////////////////////////////////////////////////////////////////////////////////
 
 * INVENTORY
@@ -392,11 +387,17 @@ foreach var of varlist c1960-c3410 {
     lab var c2270 "(-) FINAL INVENTORY OF FINISHED PRODUCTS - PRODUCTION COSTS"
 
 * Production costs by category
-gen double cost_prod_interm_goods = c1960 + c1970 + c1980 + c1990 - c2000
-gen double cost_prod_raw_materials = c2010 + c2020 + c2030 - c2040
-gen double cost_prod_in_process = c2240 - c2250
-gen double cost_prod_finished = c2260 - c2270
+gen double cost_prod_interm_goods = c1960 + c1970 + c1980 + c1990 + cond(c2000>0, -c2000, c2000)
+gen double cost_prod_raw_materials = c2010 + c2020 + c2030 + cond(c2040>0, -c2040, c2040)
+gen double cost_prod_in_process = c2240 + cond(c2250>0, -c2250, c2250)
+gen double cost_prod_finished = c2260 + cond(c2270>0, -c2270, c2270)
 gen double cost_prod_total = cost_prod_interm_goods + cost_prod_raw_materials + cost_prod_in_process + cost_prod_finished
+
+* Informative variables on final inventories
+gen double cost_prod_fi_ig = cond(c2000>0, -c2000, c2000) // in case they get reported with minus
+gen double cost_prod_fi_rm = cond(c2040>0, -c2040, c2040) // in case they get reported with minus
+gen double cost_prod_fi_ip = cond(c2250>0, -c2250, c2250) // in case they get reported with minus
+gen double cost_prod_fi_fn = cond(c2270>0, -c2270, c2270) // in case they get reported with minus
 
 * Informative variables on imports
 gen double info_imports_interm_goods = c1980 + c1990 // already included in "cost_prod_interm_goods", not to be double counted
@@ -404,7 +405,9 @@ gen double info_imports_raw_materials = c2030 // already included in "cost_prod_
 
 * Format and keep only total (for now)
 format %20.2f cost_prod_* info_imports_*
-drop cost_prod_interm_goods cost_prod_raw_materials cost_prod_in_process cost_prod_finished info*
+drop cost_prod_interm_goods cost_prod_raw_materials cost_prod_in_process cost_prod_finished info* cost_prod_fi*
+di as input "INVENTORY COSTS done"
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -449,6 +452,8 @@ gen double cost_labour_total = cost_labour_iess + cost_labour_prof_fees_dom + co
 * Format and keep only total (for now)
 format %20.2f cost_labour*
 drop cost_labour_iess cost_labour_prof_fees_dom cost_labour_prof_fees_imp
+di as input "LABOUR COSTS done"
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -559,6 +564,8 @@ gen double cost_ops_total = cost_ops_rent + cost_ops_maintenance + cost_ops_fuel
 format %20.2f cost_ops*
 drop cost_ops_rent cost_ops_maintenance cost_ops_fuel cost_ops_marketing cost_ops_supplies ///
 cost_ops_transportation cost_ops_provisions cost_ops_commissions cost_ops_other
+di as input "OTHER OPERATIONAL COSTS done"
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -579,7 +586,7 @@ lab var c3020 "(+) INTEREST PAID TO OTHERS - NOT RELATED ABROAD - PRODUCTION COS
 lab var c3030 "(+) INTEREST PAID TO OTHERS - NOT RELATED ABROAD - ADMIN EXPENSES"
 lab var c2500 "(=) INTEREST PAID TO OTHERS - HOME" // c2960 + c2970 + c3000 + c3010
 lab var c2510 "(=) INTEREST PAID TO OTHERS - ABROAD" // c2980 + c2990 + c3020 + c3030
-lab var c3040 "(=) TOTAL INTEREST PAID" // c2920 + c2930 + c2940 + c2950 + c2960 + c2970 + c2980 + c2990 + c3000 + c3010 + c3020 + c3030
+lab var c3040 "(=) TOTAL INTEREST PAID" // c2920 + c2930 + c2940 + c2950 + c2500 + c2510
 
 * Regenerate sum variables to use instead of single cells when the values of the
 * at least one single cell is different than 0. Keep the given sum instead.
@@ -598,6 +605,8 @@ gen double cost_interest_total = c3040
 
 * Format and keep only total (for now)
 format %20.2f cost_interest*
+di as input "INTEREST COSTS done"
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -630,6 +639,8 @@ gen double cost_losses_total = c3090 + c3100 + c3110
 
 * Format and keep only total (for now)
 format %20.2f cost_losses*
+di as input "LOSS COSTS done"
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -659,6 +670,8 @@ gen double cost_amortizations_total = c3270 + c3280 + c2490
 
 * Format and keep only total (for now)
 format %20.2f cost_dep* cost_amo*
+di as input "DEPRECIATIONS AND AMORTIZATIONS COSTS done"
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -710,6 +723,8 @@ drop c3310 c3330 // considered in c3350
 gen double cost_admin_total = c2480 + c2520 + c2530 + c2540 + c2550 + c2560 + c2590 + ///
                               c3120 + c3130 + c3140 + c3150 + c3160 + c3170 + c3180 + ///
                               c3190 + c3200 + c3210 + c3290 + c3300 + c3320 + c3340 + c3350
+di as input "OTHER NON-OPERATIONAL COSTS done"
+
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -724,11 +739,15 @@ lab var c3410 "( ) PAYMENT FOR REIMBURSEMENT PAID AS INTERMEDIARY"
 drop c3390 c3400 c3410 // no need for informative cells
 
 * Create new sums
-gen double tot_C = c3360
+gen double tot_CC = c3360
+gen double tot_CE = c3370
+gen double tot_C = c3380
 gen double tot_C_calc = cost_prod_total + cost_labour_total + cost_ops_total + ///
-                            cost_interest_total + cost_losses_total + cost_depreciations_total + ///
-                            cost_amortizations_total + cost_admin_total
+                        cost_interest_total + cost_losses_total + cost_depreciations_total + ///
+                        cost_amortizations_total + cost_admin_total
 format %20.2f tot_*
+lab var tot_CC     "(=) TOTAL 'COSTS' - REPORTED"
+lab var tot_CE     "(=) TOTAL EXPENDITURES - REPORTED"
 lab var tot_C      "(=) TOTAL COSTS - REPORTED"
 lab var tot_C_calc "(=) TOTAL COSTS - CALCULATED"
 cap drop c1* 
@@ -741,8 +760,6 @@ cap drop c7*
 cap drop c8*
 cap drop c9*
 
- gen same = round(tot_C)==round(tot_C_calc)
-
-tab same
+di as input "COSTS done"
 
 end
