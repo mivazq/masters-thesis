@@ -129,7 +129,7 @@ replaceID id_sri
     assert tot_C_calc>=0
     
 * Now we can also drop zeros (if a firm has zero assets, zero revenue, or zero costs)
-drop if tot_C_calc==0 | tot_R_calc==0 | tot_A_calc==0
+drop if round(tot_C_calc)==0 | round(tot_R_calc)==0 | round(tot_A_calc)==0
 
 * Drop reported values, we don't care
 drop tot_CA tot_FA tot_DA tot_LA tot_A tot_R tot_CC tot_CE tot_C
@@ -144,22 +144,6 @@ lab var tot_TFA_calc "(=) TOTAL TANGIBLE FIXED ASSETS - CALCULATED"
 * Drop if labor cost is zero. It's not credible and not viable for our estimation
 drop if cost_labour_total==0
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 * Deal with duplicates (id-year)
     * First drop exact duplicates to reduce number observations instantly
     gduplicates drop
@@ -171,50 +155,21 @@ drop if cost_labour_total==0
     keep if sub_date==last_time
     drop last_time sub_date
     
-    * There are still a few exact duplicates that are not considered exact due to rounding
-    * I can now round all the variables and recalculate totals for costs
-    ds id_sri year, not
-    foreach var in `r(varlist)' {
-        replace `var' = round(`var')
-    }
-    format `r(varlist)' %20.0g
-    
-    * Recalculate totals for costs
-    replace tot_C_calc = cost_prod_total + cost_labour_total + cost_ops_total + ///
-                         cost_interest_total + cost_losses_total + cost_depreciations_total + ///
-                         cost_amortizations_total + cost_admin_total
-                         
-    * Now drop duplicates again
-    gduplicates drop
-    
-    * Now I only consider variables calculated by me
-    ds tot_CA tot_FA tot_DA tot_LA tot_A tot_R tot_CC tot_CE tot_C, not
-    gduplicates drop `r(varlist)', force
-
-    * At this point I will simply keep the observations with the highest number
-    * of non-zero cells
+    * At this point, I take the rows with the highest total values
     gduplicates tag id_sri year, gen(dup)
-    ds id_sri year dup, not
-    egen nvar_zero = anycount(`r(varlist)'), values(0)
-    bys id_sri year: egen max_zero = max(nvar_zero)
-    bys id_sri year: egen min_zero = min(nvar_zero)
-    drop if nvar_zero==max_zero & dup>0 & max_zero!=min_zero
-    drop dup nvar_zero max_zero min_zero
-    
-    * For the remaining cases, I take the rows with the highest total values
-    gduplicates tag id_sri year, gen(dup)
-    egen rowtot = rowtotal(tot_A_calc tot_R_calc tot_C_calc)
+    egen rowtot = rowtotal(tot_AFA_calc tot_A_calc tot_R_calc tot_C_calc)
     bys id_sri year: egen max_rowtot = max(rowtot)
     bys id_sri year: egen min_rowtot = min(rowtot)
     drop if rowtot==min_rowtot & dup>0 & max_rowtot!=min_rowtot
     drop dup rowtot max_rowtot min_rowtot
-    
-    * For the very last it's very hard to tell which one we want to keep, it's just
-    * about stuff moving around different accounts and the totals being identical
-    * I randomly drop one here
+        
+    * There are still a few exact duplicates that are not considered exact due 
+    * to rounding and a few where totals are identical but distribution across
+    * different cost positions is different. Here, I keep a random one since I
+    * have no way to know.
     gduplicates tag id_sri year, gen(dup)
-    set seed 15012024
-    gen rnd = runiform()
+    set seed 16012024
+    gen rnd = runiform() if dup>0
     bys id_sri year: egen max_rnd = max(rnd)
     drop if rnd!=max_rnd & dup>0
     drop dup rnd max_rnd
@@ -227,27 +182,50 @@ drop if cost_labour_total==0
     * Ensure that finally we have unique entries
     isid id_sri year
 
-
-
-
-
 * Make panel (all firms all 4 years)
 fillin id_sri year
 
+* Generate first filing year
+gen first_filing = year if !_fillin
+bys id_sri: ereplace first_filing = min(first_filing)
+gen last_filing = year if !_fillin
+bys id_sri: ereplace last_filing = max(last_filing)
 
-br id_sri year tot_CA_calc tot_FA_calc tot_DA_calc tot_LA_calc tot_A_calc tot_R_calc tot_C_calc if tot_CA_calc<0
+* Count filings done
+gen filings_count = 1 if !_fillin
+bys id_sri: ereplace filings_count = sum(filings_count)
 
+* Calculate filings due (there should be no empty years between filed years)
+gen filings_due = (year>=first_filing & year<=last_filing)
+bys id_sri: ereplace filings_due = sum(filings_due)
 
+* Drop all firms which have missing filings. I deem their data unreliable for now.
+* Alternatively, I could take averages to fill in
+drop if filings_due!=filings_count
+drop filings_count filings_due 
 
+* Generate entry/exit/active years
+gen entry  = (year==first_filing)
+gen exit   = (year==last_filing)
+gen active = !(_fillin)
+drop _fillin
 
-
-
+* Round all variables and recalculate total cost
+foreach var of varlist *_calc cost_* {
+    replace `var' = round(`var')
+}
+ereplace tot_C_calc = rowtotal(cost*), missing
 
 * Generate result (profit/loss)
 gen double result = tot_R_calc - tot_C_calc
-format result %20.0g
+
+* Order
+order id_sri year *_filing entry exit active tot_TFA_calc tot_AFA_calc tot_A_calc tot_R_calc tot_C_calc cost_* result
+
+* Format variables
+format id_sri year *_filing entry exit active %10.0g
+format *_calc cost_* result %20.0g
 
 * Save
 compress
 export delimited $pathCle/output/tax_filings.csv, replace
-

@@ -28,6 +28,80 @@
 quietly do "~/data/transactions_ecuador/3_mivazq/Masters_Thesis/setup.do"
 ////////////////////////////////////////////////////////////////////////////////
 
+* First of all let's prepare sections of Rev 3 and Rev 3.1 to merge in with the
+* crosswalks which only have numbers (thus no section information)
+
+* Prepare ISIC Rev3 sections to be merged into crosswalk file
+import delimited $ecuRaw/nomenclatures/ISIC_codes_3.csv, encoding(UTF8) varnames(1) delimiters("%%%") stringcols(_all) clear
+split codedescription, gen(var) parse("       ") // split into 2 columns (doesn't work with tab delimiter)
+destring var1, gen(codes) force // destring to identify sections (cannot be destringed since strings)
+gen section = substr(var1,1,1) if missing(codes) // generate sections
+carryforward section, replace // carry them forward across codes
+drop if missing(codes) // drop "section" rows
+drop codedescription codes var2 // drop useless variables
+drop if strlen(var1)!=4 // keep only ISIC classes
+rename (var1 section) (rev3 rev3_sec) // rename variables to merge
+tempfile secs_for_crosswalk_3
+save `secs_for_crosswalk_3'
+
+* Prepare ISIC Rev3.1 sections to be merged into crosswalk file
+import delimited $ecuRaw/nomenclatures/ISIC_codes.csv, encoding(UTF8) varnames(1) stringcols(_all) clear
+destring code, gen(codes) force // destring to identify sections (cannot be destringed since strings)
+gen section = code if missing(codes) // generate sections
+carryforward section, replace // carry them forward across codes
+drop if missing(codes) // drop "section" rows
+drop codes description // drop useless variables
+drop if strlen(code)!=4 // keep only ISIC classes
+rename (code section) (rev31 rev31_sec) // rename variables to merge
+tempfile secs_for_crosswalk_31
+save `secs_for_crosswalk_31'
+
+
+* The official crosswalks are at the class level, so going deeper than that does
+* not make sense. The highest level of granularity we will keep for our deflators 
+* will be the ISIC class. In what follows I prepare crosswalks at different 
+* levels (class, group, division, section). For the other levels besides class, 
+* I collapse at the rev31-rev3 match level calculating weights along the way. 
+* E.g. it might be that to get the deflator for a specific rev31 code we use 80%
+* of a rev3 deflator and 20% of another one.
+
+* Prepare crosswalk at CLASS level (note: it already is)
+import delimited $ecuRaw/nomenclatures/crosswalk_3_3.1.txt, encoding(UTF8) varnames(1) stringcols(_all) clear
+keep rev31 rev3
+tempfile isic_clas
+save `isic_clas'
+
+* Prepare crosswalk at GROUP level
+import delimited $ecuRaw/nomenclatures/crosswalk_3_3.1.txt, encoding(UTF8) varnames(1) stringcols(_all) clear
+replace rev31 = substr(rev31,1,3)
+replace rev3  = substr(rev3, 1,3)
+keep rev31 rev3
+gduplicates drop
+tempfile isic_grps
+save `isic_grps'
+
+* Prepare crosswalk at DIVISION level
+import delimited $ecuRaw/nomenclatures/crosswalk_3_3.1.txt, encoding(UTF8) varnames(1) stringcols(_all) clear
+replace rev31 = substr(rev31,1,2)
+replace rev3  = substr(rev3, 1,2)
+keep rev31 rev3
+gduplicates drop
+tempfile isic_divs
+save `isic_divs'
+
+* Prepare crosswalk at SECTION level (first get sections)
+import delimited $ecuRaw/nomenclatures/crosswalk_3_3.1.txt, encoding(UTF8) varnames(1) stringcols(_all) clear
+merge m:1 rev3  using `secs_for_crosswalk_3',  nogen
+merge m:1 rev31 using `secs_for_crosswalk_31', nogen
+replace rev3_sec = "P" if inlist(rev31, "9600", "9700") // Non-existent in rev3
+keep rev31_sec rev3_sec
+rename (rev31_sec rev3_sec) (rev31 rev3)
+gduplicates drop
+tempfile isic_secs
+save `isic_secs'
+
+////////////////////////////////////////////////////////////////////////////////
+
 * Load PPI data
 import excel "$ecuRaw/prices/6-Indices_Var_Total_(Nac_Expor)_CIIU_3.xlsx", sheet("INDICES CIIU-3") cellrange(A6:GY302) case(lower) allstring clear
 
@@ -72,92 +146,246 @@ gen rev3 = substr(code, 2, .)
 replace rev3 = code if missing(rev3)
 replace rev3 = "Total" if code=="T"
 
-* Keep only class level 
-keep if strlen(rev3)==4
-
-* Load ISIC codes data 
-preserve
-    import delimited $ecuRaw/nomenclatures/crosswalk_3_3.1.txt, encoding(UTF8) varnames(1) stringcols(_all) clear
-    tempfile codes
-    save `codes'
-restore
-
-* Merge with crosswalk
-merge 1:m rev3 using `codes', assert(match using) keep(match) keepusing(rev31) nogen
+* Drop description
 drop description
 
-* Collapse at rev3.1 level by taking means when needed
-gen section = substr(code,1,1)
-replace rev31 = section+rev31
-gcollapse (mean) adj*, by(rev31)
-rename rev31 code
+////////////////////////////////////////////////////////////////////////////////
+
+* Deflators at level 0 (TOTAL)
+preserve
+    * Keep only class level
+    keep if rev3=="Total"
+    
+    * Export deflators
+    reshape long adj_year_, i(code) j(year)
+    rename adj_year_ general_deflator
+    drop code rev3
+    isid year
+    save $pathCle/output/deflators_general.dta, replace
+restore
 
 
+* Deflators at level 1 (SECTION)
+preserve
+    * Keep only section level
+    keep if strlen(rev3)==1
 
-* Export deflators
-reshape long adj_year_, i(code) j(year)
-rename adj_year_ deflator
+    * Merge with crosswalk
+    merge 1:m rev3 using `isic_secs', assert(match using) keep(match) nogen
+    
+    * Drop codes outside of scope
+    drop if !inlist(rev31, "A", "B", "C", "D")
+    
+    * Calculate weights for mean
+    gen weight = 1
+    bys rev31: egen tot_weight = sum(weight)
+    replace weight = weight/tot_weight
+    drop tot_weight
+    
+    * Collapse at rev3.1 level by taking means when needed
+    gcollapse (sum) adj* [pw=weight], by(rev31)
+    rename rev31 isic_section
+    
+    * Reshape deflators
+    reshape long adj_year_, i(isic_section) j(year)
+    rename adj_year_ deflator
+    
+    * Export
+    isid isic_section year
+    save $pathCle/output/deflators_isic_section.dta, replace
+restore
+
+
+* Deflators at level 2 (DIVISION)
+preserve
+    * Keep only dvision level
+    keep if strlen(rev3)==2
+
+    * Merge with crosswalk
+    merge 1:m rev3 using `isic_divs', assert(match using) keep(match) nogen
+    
+    * Drop codes outside of scope
+    destring rev31, gen(tmp)
+    drop if tmp>37 // 37 is the last division of manufacturing (section D)
+    drop tmp
+    
+    * Calculate weights for mean
+    gen weight = 1
+    bys rev31: egen tot_weight = sum(weight)
+    replace weight = weight/tot_weight
+    drop tot_weight
+    
+    * Collapse at rev3.1 level by taking means when needed
+    replace rev31 = substr(code,1,1)+rev31
+    gcollapse (sum) adj* [pw=weight], by(rev31)
+    rename rev31 isic_division
+    
+    * Reshape deflators
+    reshape long adj_year_, i(isic_division) j(year)
+    rename adj_year_ deflator
+    
+    * Export
+    isid isic_division year
+    save $pathCle/output/deflators_isic_division.dta, replace
+restore
+
+
+* Deflators at level 3 (GROUP)
+preserve
+    * Keep only group level
+    keep if strlen(rev3)==3
+
+    * Merge with crosswalk
+    merge 1:m rev3 using `isic_grps', assert(match using) keep(match) nogen
+    
+    * Drop codes outside of scope
+    destring rev31, gen(tmp)
+    drop if tmp>372 // 372 is the last group of manufacturing (section D)
+    drop tmp
+    
+    * Recalculate weights based on what's available
+    gen weight = 1
+    bys rev31: egen tot_weight = sum(weight)
+    replace weight = weight/tot_weight
+    drop tot_weight
+    
+    * Collapse at rev3.1 level by taking means when needed
+    replace rev31 = substr(code,1,1)+rev31
+    gcollapse (sum) adj* [pw=weight], by(rev31)
+    rename rev31 isic_group
+    
+    * Reshape deflators
+    reshape long adj_year_, i(isic_group) j(year)
+    rename adj_year_ deflator
+    
+    * Export
+    isid isic_group year
+    save $pathCle/output/deflators_isic_group.dta, replace
+restore
+
+
+* Deflators at level 4 (CLASS)
+preserve
+    * Keep only class level 
+    keep if strlen(rev3)==4
+
+    * Merge with crosswalk
+    merge 1:m rev3 using `isic_clas', assert(match using) keep(match) nogen
+    
+    * Drop codes outside of scope
+    destring rev31, gen(tmp)
+    drop if tmp>3720 // 372 is the last group of manufacturing (section D)
+    drop tmp
+    
+    * Recalculate weights based on what's available
+    gen weight = 1
+    bys rev31: egen tot_weight = sum(weight)
+    replace weight = weight/tot_weight
+    drop tot_weight
+    
+    * Collapse at rev3.1 level by taking means when needed
+    gen section = substr(code,1,1)
+    replace rev31 = section+rev31
+    gcollapse (sum) adj* [pw=weight], by(rev31)
+    rename rev31 isic_class
+
+    * Reshape deflators
+    reshape long adj_year_, i(isic_class) j(year)
+    rename adj_year_ deflator
+    
+    * Export
+    isid isic_class year
+    save $pathCle/output/deflators_isic_class.dta, replace
+restore
+
+////////////////////////////////////////////////////////////////////////////////
+
+* Let's now create a file with all ISIC Rev.3 codes at all levels and their
+* respective deflators
+
+* Load ISIC Rev 3.1 file and prepare
+import delimited $ecuRaw/nomenclatures/ISIC_codes.csv, encoding(UTF8) varnames(1) stringcols(_all) clear
+destring code, gen(codes) force // destring to identify sections (cannot be destringed since strings)
+gen section = code if missing(codes) // generate sections
+carryforward section, replace // carry them forward across codes
+replace code = section + code if code!=section // append section letter at beginning
+drop codes section
+
+* Make panel of 4 years
+gen year = 2008
+expand 2 if year==2008, gen(y2009)
+replace year = 2009 if y2009
+expand 2 if year==2008, gen(y2010)
+replace year = 2010 if y2010
+expand 2 if year==2008, gen(y2011)
+replace year = 2011 if y2011
+drop y2009 y2010 y2011
+
+* Merge with different datasets created earlier
+gen deflator = .
+foreach level in section division group class {
+    rename code isic_`level'
+    merge 1:1 year isic_`level' using $pathCle/output/deflators_isic_`level'.dta, assert(master match_update) keep(master match_update) update nogen
+    rename isic_`level' code
+}
+
+* Fill missing deflators by trying to go one level up and see if I get a match 
+rename deflator deflator1
+rename code orig_code
+gen code = substr(orig_code, 1, strlen(orig_code)-1) // go one level up
+replace code = substr(code, 1, strlen(code)-1) if strlen(code)==2 // length of 2 does not exist, keep moving up
+gen deflator = .
+foreach level in section division group {
+    rename code isic_`level'
+    merge m:1 year isic_`level' using $pathCle/output/deflators_isic_`level'.dta, keep(master match_update) update nogen
+    rename isic_`level' code
+}
+
+* Fill missing deflators by going one more level up and see if I get a match 
+rename deflator deflator2
+replace code = substr(code, 1, strlen(code)-1) // go one level up
+replace code = substr(code, 1, strlen(code)-1) if strlen(code)==2 // length of 2 does not exist, keep moving up
+gen deflator = .
+foreach level in section division {
+    rename code isic_`level'
+    merge m:1 year isic_`level' using $pathCle/output/deflators_isic_`level'.dta, keep(master match_update) update nogen
+    rename isic_`level' code
+}
+
+* Fill missing deflators by going one last level up and see if I get a match 
+rename deflator deflator3
+replace code = substr(code, 1, strlen(code)-1) // go one level up
+replace code = substr(code, 1, strlen(code)-1) if strlen(code)==2 // length of 2 does not exist, keep moving up
+gen deflator = .
+foreach level in section {
+    rename code isic_`level'
+    merge m:1 year isic_`level' using $pathCle/output/deflators_isic_`level'.dta, keep(master match_update) update nogen
+    rename isic_`level' code
+}
+
+* Fill in original deflator by using always the most precise one when available
+rename deflator deflator4
+replace deflator1 = deflator2 if missing(deflator1)
+replace deflator1 = deflator3 if missing(deflator1)
+replace deflator1 = deflator4 if missing(deflator1)
+assert !missing(deflator1) if inlist(substr(orig_code,1,1), "A", "B", "C", "D")
+
+* Drop auxiliary variables, rename others
+drop deflator2 deflator3 deflator4 code
+rename (orig_code deflator1) (code deflator)
+
+* For the industries with missing deflators, I use the general one (economy-wide)
+merge m:1 year using $pathCle/output/deflators_general.dta, assert(match) nogen keepusing(general_deflator)
+replace deflator = general_deflator if missing(deflator)
+drop general_deflator
+
+* Export final complete file
 isid code year
 export delimited $pathCle/output/deflators.csv, replace
 
-
-
-
-
-
-
-
-/*
-* Load PPI data
-import excel $ecuRaw/prices/DECON_03_IPPDN_Serie_historica_CIIU_2023_11.xlsx, sheet("1. Indice Nacional") cellrange(A8:LB175) case(lower) allstring clear
-
-* Make variable names viable Stata variable names and rename
-foreach var of varlist * {
-    qui replace `var' = subinstr(`var',"-","_",.) if _n==1
-}
-foreach var of varlist * {
-    local varname : di `var'[1]
-    rename `var' `varname'
-}
-drop if _n==1
-rename (Nivel CIIU Descripción) (level code description)
-
-* Keep only necessary years
-keep level code description *_08 *_09 *_10 *_11 *_12 *_13 *_14 *_15
-
-* Destring index values
-qui destring *_08 *_09 *_10 *_11 *_12 *_13 *_14 *_15, replace
-
-* Generate year indexes by taking averages across the 12 months (this is also how INEC does)
-foreach val in 08 09 10 11 12 13 14 15 {
-    egen year_20`val' = rowmean(*_`val')
-}
-
-* Drop monthly values
-drop *_08 *_09 *_10 *_11 *_12 *_13 *_14 *_15
-
-* Generate variable to merge
-gen isic4code = substr(code, 2, .)
-replace isic4code = code if missing(isic4code) | code=="Total"
-
-* Load ISIC codes data 
-preserve
-    import delimited $ecuRaw/nomenclatures/crosswalk_4_3.1.txt, encoding(UTF8) varnames(1) stringcols(_all) clear
-    tempfile codes
-    save `codes'
-restore
-
-* Merge with crosswalk
-merge 1:m isic4code using `codes', keep(master match)
-
-* Let's see if they have 3.1 ... otherwise it will be a pain in the ass
-
-* For now export 1 general deflator
-keep if level=="0"
-drop level code description isic4code
-gen n = 1
-reshape long year_, i(n) j(year)
-drop n
-rename year_ deflator
-export delimited $pathCle/output/deflators.csv
-*/
+* Remove auxiliary stata files
+rm $pathCle/output/deflators_general.dta
+rm $pathCle/output/deflators_isic_section.dta 
+rm $pathCle/output/deflators_isic_division.dta 
+rm $pathCle/output/deflators_isic_group.dta 
+rm $pathCle/output/deflators_isic_class.dta 

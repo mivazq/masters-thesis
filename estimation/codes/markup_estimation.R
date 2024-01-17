@@ -14,6 +14,20 @@ source('~/data/transactions_ecuador/3_mivazq/Masters_Thesis/setup.R')
 #----                         1 - LOAD FINAL PANEL                          ----
 #///////////////////////////////////////////////////////////////////////////////
 
+# Load data
+df_tax_filings <- fread(file=paste0(pathCle, "output/tax_filings.csv"), na.strings="")
+df_firm_info   <- fread(file=paste0(pathCle, "output/firm_info.csv"), na.strings="")
+df_deflators   <- fread(file=paste0(pathCle, "output/deflators.csv"), na.strings="")
+
+# Merge tax filings panel with firm industry information
+panel <- merge(df_tax_filings, df_firm_info[,.(id_sri, soe, isic_section, isic_class)], by="id_sri", all.x=T)
+panel <- panel[isic_section %nin% c("P","Q","R","S","T")]
+
+# Merge price deflators into panel
+panel <- merge(panel, df_deflators, by=c("year","isic_class"), all.x=T) # when specific ISIC
+
+
+
 # Olley Pakes -------------------------------------------------------------
 
 df <- read.csv("PS1_Data_Olley_Pakes.csv")
