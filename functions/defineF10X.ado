@@ -322,7 +322,7 @@ lab var c1890 "(+) EXEMPTED INCOME FROM DONATIONS AND CONTRIBUTIONS - FROM OTHER
 lab var c1900 "(+) EXEMPTED INCOME FROM DONATIONS AND CONTRIBUTIONS - FROM ABROAD"
 lab var c1910 "(=) EXEMPTED INCOME FROM DONATIONS AND CONTRIBUTIONS" // c1880 + c1890 + c1900
 lab var c1920 "(+) OTHER EXEMPTED INCOME"
-lab var c1930 "(=) TOTAL INCOME"                                            // Total
+lab var c1930 "(=) TOTAL INCOME" // Total
 lab var c1940 "( ) NET SALES OF FIXED ASSETS"
 lab var c1950 "( ) REIMBURSEMENT RECEIVED AS INTERMEDIARY"
 drop c1940 c1950 // no need for informative cells
@@ -336,11 +336,15 @@ replace c1910 = cond(c1880!=0 | c1890!=0 | c1900!=0, ///
 drop c1880 c1890 c1900
 
 * Create new sums
+gen double revenue_op_dom = c1800+c1810
+gen double revenue_op_exp = c1820
+gen double revenue_op_total = revenue_op_dom + revenue_op_exp
+gen double revenue_nop_total = c1830 + c1840 + c1850 + c1860 + c1870 + c1910 + c1920
 gen double tot_R = c1930
-gen double tot_R_calc = c1800 + c1810 + c1820 + c1830 + c1840 + c1850 + c1860 + c1870 + c1910 + c1920
+gen double tot_R_calc = revenue_op_total + revenue_nop_total
 format %20.2f tot_*
-lab var tot_R      "(=) TOTAL ASSETS - REPORTED"
-lab var tot_R_calc "(=) TOTAL ASSETS - CALCULATED"
+lab var tot_R      "(=) TOTAL REVENUES - REPORTED"
+lab var tot_R_calc "(=) TOTAL REVENUES - CALCULATED"
 drop c1800 c1810 c1820 c1830 c1840 c1850 c1860 c1870 c1910 c1920 c1930
 di as input "INCOME done"
 

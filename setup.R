@@ -16,7 +16,10 @@ packages_needed <- c('haven',                                                   
                      'scales',                                                  # To handle very big numbers
                      'bit64',                                                   # To handle very big numbers
                      'Matrix',                                                  # (Sparse) matrix manipulation
-                     'lsa'                                                      # For cosine-similarity
+                     'lsa',                                                     # For cosine-similarity
+                     'fixest',                                                  # For fixed-effects estimation
+                     'plm',                                                     # Linear models for panel data
+                     'modelsummary'                                             # Summary of models
                      )
 					 
 # Get list of installed packages

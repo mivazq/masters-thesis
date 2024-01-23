@@ -389,3 +389,40 @@ rm $pathCle/output/deflators_isic_section.dta
 rm $pathCle/output/deflators_isic_division.dta 
 rm $pathCle/output/deflators_isic_group.dta 
 rm $pathCle/output/deflators_isic_class.dta 
+
+////////////////////////////////////////////////////////////////////////////////
+
+* Finlly let's prepare deflators for assets, using Consumer Price Indexes instead
+* of Producer Price Indexes.
+
+* Load CPI data
+import excel "$ecuRaw/prices/SERIE HISTORICA IPC_12_2023.xls", sheet("1. ÍNDICE") cellrange(A4:M60) case(lower) allstring clear
+
+* Rename variables
+foreach var of varlist * {
+    local varname : di `var'[1]
+    rename `var' `varname'
+}
+drop if _n==1 | _n==2
+rename MESES year
+
+* Destring all variables
+destring _all, replace
+
+* Take monthly averages
+egen cpi = rowmean(Enero-Diciembre)
+drop Enero-Diciembre
+
+* Keep only 2007-2011
+keep if year>=2007 & year<=2011
+
+* Adjust to have 2007 as base year
+assert year==2007 if _n==1
+local cpi_2007 = cpi[1]
+di "`cpi_2007'"
+replace cpi = cpi/`cpi_2007'*100
+drop if year==2007
+
+* Export final complete file
+isid year
+export delimited $pathCle/output/assets_deflators.csv, replace

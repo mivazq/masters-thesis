@@ -3,9 +3,6 @@
 # Current author:	Miguel Vázquez Vázquez
 # Description:      This function prints rounded, formatted coefficients to have
 #					the same length (keeps trailing zeros).
-#
-# Proofreader:	  	
-# Proofread date:	  
 #///////////////////////////////////////////////////////////////////////////////
 
 # Format print

@@ -106,6 +106,9 @@ foreach file of local files {
     qui append using "$pathCle/input/cleaning_intermediate/F10X/`file'"
 }
 
+* Drop reported values, we don't care
+drop tot_CA tot_FA tot_DA tot_LA tot_A tot_R tot_CC tot_CE tot_C
+
 * Check identifying variables are not missing nor zeros
 foreach var of varlist id_sri year sub_date {
     assert `var'!=0 & !missing(`var')
@@ -126,13 +129,22 @@ replaceID id_sri
     
     * Costs
     drop if cost_prod_total<0
-    assert tot_C_calc>=0
+    assert tot_C_calc>=0 // total can only be negative due to cost_prod_total
     
-* Now we can also drop zeros (if a firm has zero assets, zero revenue, or zero costs)
-drop if round(tot_C_calc)==0 | round(tot_R_calc)==0 | round(tot_A_calc)==0
+* Round all variables to 2 decimal places and recalculate totals
+foreach var of varlist *_calc cost_* revenue_* {
+    replace `var' = round(`var', 0.01)
+}
+ereplace tot_C_calc = rowtotal(cost*), missing
+replace revenue_op_total = revenue_op_dom + revenue_op_exp
+replace tot_R_calc = revenue_op_total + revenue_nop_total
+replace tot_A_calc = tot_CA_calc + tot_FA_calc + tot_DA_calc + tot_LA_calc
 
-* Drop reported values, we don't care
-drop tot_CA tot_FA tot_DA tot_LA tot_A tot_R tot_CC tot_CE tot_C
+* Generate result (profit/loss)
+gen double result = tot_R_calc - tot_C_calc
+
+* Now we can also drop zeros (if a firm has zero total assets, zero total revenue, or zero total costs)
+drop if round(tot_C_calc)==0 | round(tot_R_calc)==0 | round(tot_A_calc)==0
 
 * I will either use FA or FA+DA or A. Definitely not CA or LA
 gen double tot_AFA_calc = tot_FA_calc + tot_DA_calc, after(tot_FA_calc)
@@ -141,8 +153,14 @@ drop tot_CA_calc tot_LA_calc tot_FA_calc tot_DA_calc
 lab var tot_AFA_calc "(=) TOTAL ALL FIXED ASSETS - CALCULATED"
 lab var tot_TFA_calc "(=) TOTAL TANGIBLE FIXED ASSETS - CALCULATED"
 
-* Drop if labor cost is zero. It's not credible and not viable for our estimation
-drop if cost_labour_total==0
+* Drop if variables of interest for estimation are zero
+    drop if round(tot_AFA_calc)==0 // total fixed assets (tangible+intangible), don't care about other assets
+    drop if round(revenue_op_total)==0 // don't care about non-operative revenue
+    drop if round(cost_labour_total)==0 // 0 labor not credible and not viable for our estimation
+    drop if round(cost_prod_total)==0 // 0 materials not credible and not viable for our estimation
+
+* Keep only variables of interest
+keep id_sri year sub_date tot_AFA_calc revenue_op_total cost_prod_total cost_labour_total
 
 * Deal with duplicates (id-year)
     * First drop exact duplicates to reduce number observations instantly
@@ -154,31 +172,31 @@ drop if cost_labour_total==0
     format last_time %tc
     keep if sub_date==last_time
     drop last_time sub_date
-    
+
     * At this point, I take the rows with the highest total values
     gduplicates tag id_sri year, gen(dup)
-    egen rowtot = rowtotal(tot_AFA_calc tot_A_calc tot_R_calc tot_C_calc)
-    bys id_sri year: egen max_rowtot = max(rowtot)
-    bys id_sri year: egen min_rowtot = min(rowtot)
+    egen double rowtot = rowtotal(tot_AFA_calc revenue_op_total cost_prod_total cost_labour_total)
+    bys id_sri year: egen double max_rowtot = max(rowtot)
+    bys id_sri year: egen double min_rowtot = min(rowtot)
     drop if rowtot==min_rowtot & dup>0 & max_rowtot!=min_rowtot
     drop dup rowtot max_rowtot min_rowtot
         
-    * There are still a few exact duplicates that are not considered exact due 
-    * to rounding and a few where totals are identical but distribution across
-    * different cost positions is different. Here, I keep a random one since I
-    * have no way to know.
-    gduplicates tag id_sri year, gen(dup)
-    set seed 16012024
-    gen rnd = runiform() if dup>0
-    bys id_sri year: egen max_rnd = max(rnd)
-    drop if rnd!=max_rnd & dup>0
-    drop dup rnd max_rnd
+//     * There are still a few exact duplicates that are not considered exact due 
+//     * to rounding or where totals are identical but distribution across different 
+//     * cost positions is different. Here, I keep a random one since I have no way 
+//     * to know.
+//     gduplicates tag id_sri year, gen(dup)
+//     set seed 16012024
+//     gen rnd = runiform() if dup>0
+//     bys id_sri year: egen max_rnd = max(rnd)
+//     drop if rnd!=max_rnd & dup>0
+//     drop dup rnd max_rnd
     
-    * Merge public oil exporter
-    replace id_sri = 129098 if id_sri == 128357
-    ds id_sri year, not
-    gcollapse (sum) `r(varlist)', by(id_sri year)
-    
+    * Drop public oil exporter. It is extremely huge, not at all comparable with 
+    * any other firms in Ecuador, and it was part of OPEC at the time such that 
+    * their prices where not decided on the market anyway.
+    drop if id_sri == 129098 | id_sri == 128357 // two IDs merged in 2010
+   
     * Ensure that finally we have unique entries
     isid id_sri year
 
@@ -210,21 +228,20 @@ gen exit   = (year==last_filing)
 gen active = !(_fillin)
 drop _fillin
 
-* Round all variables and recalculate total cost
-foreach var of varlist *_calc cost_* {
-    replace `var' = round(`var')
-}
-ereplace tot_C_calc = rowtotal(cost*), missing
+* Rename variables (remove _calc and _total suffixes)
+rename *_calc *
+rename *_total *
+rename(tot_AFA revenue_op cost_prod cost_labour) (fixed_assets operative_revenues material_costs labour_costs)
 
-* Generate result (profit/loss)
-gen double result = tot_R_calc - tot_C_calc
+* Generate is_exporter dummy
+// gen is_exporter = (revenue_op_exp > 0) if !missing(revenue_op_exp)
 
 * Order
-order id_sri year *_filing entry exit active tot_TFA_calc tot_AFA_calc tot_A_calc tot_R_calc tot_C_calc cost_* result
+order id_sri year *_filing entry exit active *_assets *_revenues *_costs
 
 * Format variables
 format id_sri year *_filing entry exit active %10.0g
-format *_calc cost_* result %20.0g
+format *_assets *_revenues *_costs %20.2f
 
 * Save
 compress
