@@ -97,7 +97,7 @@ qui{
 		{
 			PHI=st_data(.,("phi"))
 			PHI_LAG=st_data(.,("phi_lag"))
-			Z    =st_data(.,("const","l_lag","k",    "l_lag2","k2",    "l_lagk"))
+			Z    =st_data(.,("const","l_lag","k",    "l_lag2","k2", "l_lagk"))
 			X    =st_data(.,("const","l",    "k",    "l2",    "k2",    "lk"))
 			X_lag=st_data(.,("const","l_lag","k_lag","l_lag2","k_lag2","l_lagk_lag"))
 			Y=st_data(.,("y"))

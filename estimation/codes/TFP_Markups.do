@@ -30,7 +30,7 @@ mata:
 	{
 		PHI = st_data(.,("phi"),"touse")
 		PHI_LAG = st_data(.,("phi_lag"),"touse")
-		Z     = st_data(.,("const","cogs_lag","k",    "cogs_lag2","k2",    "cogs_lagk"),    "touse")
+		Z     = st_data(.,("const","cogs_lag","k",    "cogs_lag2","k2",    "cogs_lagk"),"touse")
 		X     = st_data(.,("const","cogs",    "k",    "cogs2",    "k2",    "cogsk"),        "touse")
 		X_lag = st_data(.,("const","cogs_lag","k_lag","cogs_lag2","k_lag2","cogs_lagk_lag"),"touse")
 		Y = st_data(.,("y"),"touse")
