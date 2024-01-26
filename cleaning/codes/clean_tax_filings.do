@@ -120,8 +120,9 @@ replaceID id_sri
 * For now we drop all cases with negative calculated total values. I may change
 * this and adjust by correcting the provision/depreciation/etc. amounts to breakeven
     * Assets
-    drop if tot_CA_calc<0 | tot_FA_calc<0 | tot_DA_calc<0 | tot_LA_calc<0
-    assert tot_A_calc>=0
+    //     drop if tot_CA_calc<0 | tot_FA_calc<0 | tot_DA_calc<0 | tot_LA_calc<0
+    drop if tot_FA_calc<0 
+    //assert tot_A_calc>=0
     drop tot_A_calc_non_neg tot_CA_prov tot_FA_acdp tot_DA_acam tot_LA_prov
     
     * Revenue
@@ -154,13 +155,13 @@ lab var tot_AFA_calc "(=) TOTAL ALL FIXED ASSETS - CALCULATED"
 lab var tot_TFA_calc "(=) TOTAL TANGIBLE FIXED ASSETS - CALCULATED"
 
 * Drop if variables of interest for estimation are zero
-    drop if round(tot_AFA_calc)==0 // total fixed assets (tangible+intangible), don't care about other assets
+    drop if round(tot_TFA_calc)==0 // tangible fixed assets, don't care about other assets
     drop if round(revenue_op_total)==0 // don't care about non-operative revenue
     drop if round(cost_labour_total)==0 // 0 labor not credible and not viable for our estimation
     drop if round(cost_prod_total)==0 // 0 materials not credible and not viable for our estimation
 
 * Keep only variables of interest
-keep id_sri year sub_date tot_AFA_calc revenue_op_total cost_prod_total cost_labour_total
+keep id_sri year sub_date tot_TFA_calc revenue_op_total cost_prod_total cost_labour_total
 
 * Deal with duplicates (id-year)
     * First drop exact duplicates to reduce number observations instantly
@@ -175,7 +176,7 @@ keep id_sri year sub_date tot_AFA_calc revenue_op_total cost_prod_total cost_lab
 
     * At this point, I take the rows with the highest total values
     gduplicates tag id_sri year, gen(dup)
-    egen double rowtot = rowtotal(tot_AFA_calc revenue_op_total cost_prod_total cost_labour_total)
+    egen double rowtot = rowtotal(tot_TFA_calc revenue_op_total cost_prod_total cost_labour_total)
     bys id_sri year: egen double max_rowtot = max(rowtot)
     bys id_sri year: egen double min_rowtot = min(rowtot)
     drop if rowtot==min_rowtot & dup>0 & max_rowtot!=min_rowtot
@@ -231,7 +232,7 @@ drop _fillin
 * Rename variables (remove _calc and _total suffixes)
 rename *_calc *
 rename *_total *
-rename(tot_AFA revenue_op cost_prod cost_labour) (fixed_assets operative_revenues material_costs labour_costs)
+rename(tot_TFA revenue_op cost_prod cost_labour) (tang_fixed_assets operative_revenues material_costs labour_costs)
 
 * Generate is_exporter dummy
 // gen is_exporter = (revenue_op_exp > 0) if !missing(revenue_op_exp)
