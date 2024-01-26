@@ -26,13 +26,13 @@ GMM_DLW <- function(BETAS, PHI, PHI_LAG, Z, X, X_LAG, Y, C) {
 DLW_CD <- function(init_par = as.matrix(c(1, 0.65, 0.35))) {
     S <- optim(par = init_par, 
                fn  = GMM_DLW,
-               PHI     = as.matrix(dt_est[use==1 & dt_sel]$Phi_hat), 
-               PHI_LAG = as.matrix(dt_est[use==1 & dt_sel]$Phi_hat_lag),
-               Z       = as.matrix(dt_est[use==1 & dt_sel,.(cons, v_lag, k)]),
-               X       = as.matrix(dt_est[use==1 & dt_sel,.(cons, v,     k)]),
-               X_LAG   = as.matrix(dt_est[use==1 & dt_sel,.(cons, v_lag, k_lag)]),
-               Y       = as.matrix(dt_est[use==1 & dt_sel]$y), 
-               C       = as.matrix(dt_est[use==1 & dt_sel]$cons)
+               PHI     = as.matrix(dt_est[use_2nd & sec_sel]$Phi_hat), 
+               PHI_LAG = as.matrix(dt_est[use_2nd & sec_sel]$Phi_hat_lag),
+               Z       = as.matrix(dt_est[use_2nd & sec_sel,.(cons, v_lag, k)]),
+               X       = as.matrix(dt_est[use_2nd & sec_sel,.(cons, v,     k)]),
+               X_LAG   = as.matrix(dt_est[use_2nd & sec_sel,.(cons, v_lag, k_lag)]),
+               Y       = as.matrix(dt_est[use_2nd & sec_sel]$y), 
+               C       = as.matrix(dt_est[use_2nd & sec_sel]$cons)
     )
     result <- S$par
     names(result) <- c("c", "v", "k")
@@ -43,13 +43,13 @@ DLW_CD <- function(init_par = as.matrix(c(1, 0.65, 0.35))) {
 DLW_TL <- function(init_par = as.matrix(c(0, 0, 0, 0, 0, 0))) {
     S <- optim(par = init_par,
                fn  = GMM_DLW,
-               PHI     = as.matrix(dt_est[use==1 & dt_sel]$Phi_hat),
-               PHI_LAG = as.matrix(dt_est[use==1 & dt_sel]$Phi_hat_lag),
-               Z       = as.matrix(dt_est[use==1 & dt_sel,.(cons, v_lag, k,     v_lag2, k2,     v_lagk)]),
-               X       = as.matrix(dt_est[use==1 & dt_sel,.(cons, v,     k,     v2,     k2,     vk)]),
-               X_LAG   = as.matrix(dt_est[use==1 & dt_sel,.(cons, v_lag, k_lag, v_lag2, k_lag2, v_lagk_lag)]),
-               Y       = as.matrix(dt_est[use==1 & dt_sel]$y),
-               C       = as.matrix(dt_est[use==1 & dt_sel]$cons)
+               PHI     = as.matrix(dt_est[use_2nd & sec_sel]$Phi_hat),
+               PHI_LAG = as.matrix(dt_est[use_2nd & sec_sel]$Phi_hat_lag),
+               Z       = as.matrix(dt_est[use_2nd & sec_sel,.(cons, v_lag, k,     v_lag2, k2,     v_lagk)]),
+               X       = as.matrix(dt_est[use_2nd & sec_sel,.(cons, v,     k,     v2,     k2,     vk)]),
+               X_LAG   = as.matrix(dt_est[use_2nd & sec_sel,.(cons, v_lag, k_lag, v_lag2, k_lag2, v_lagk_lag)]),
+               Y       = as.matrix(dt_est[use_2nd & sec_sel]$y),
+               C       = as.matrix(dt_est[use_2nd & sec_sel]$cons)
     )
     result <- S$par
     names(result) <- c("c", "v", "k", "v2", "k2", "vk")
