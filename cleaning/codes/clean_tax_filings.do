@@ -106,9 +106,6 @@ foreach file of local files {
     qui append using "$pathCle/input/cleaning_intermediate/F10X/`file'"
 }
 
-* Drop reported values, we don't care
-drop tot_CA tot_FA tot_DA tot_LA tot_A tot_R tot_CC tot_CE tot_C
-
 * Check identifying variables are not missing nor zeros
 foreach var of varlist id_sri year sub_date {
     assert `var'!=0 & !missing(`var')
@@ -117,81 +114,70 @@ foreach var of varlist id_sri year sub_date {
 * Fix IDs (should already be fine, but just to be sure)
 replaceID id_sri
 
-* For now we drop all cases with negative calculated total values. I may change
-* this and adjust by correcting the provision/depreciation/etc. amounts to breakeven
-    * Assets
-    //     drop if tot_CA_calc<0 | tot_FA_calc<0 | tot_DA_calc<0 | tot_LA_calc<0
-    drop if tot_FA_calc<0 
-    //assert tot_A_calc>=0
-    drop tot_A_calc_non_neg tot_CA_prov tot_FA_acdp tot_DA_acam tot_LA_prov
-    
-    * Revenue
-    assert tot_R_calc>=0
-    
-    * Costs
-    drop if cost_prod_total<0
-    assert tot_C_calc>=0 // total can only be negative due to cost_prod_total
-    
-* Round all variables to 2 decimal places and recalculate totals
+* Drop other assets besides fixed assets and accumulated depreciations and provisions
+drop tot_CA_calc tot_DA_calc tot_LA_calc tot_A_calc
+drop tot_A_calc_non_neg tot_CA_prov tot_FA_acdp tot_DA_acam tot_LA_prov
+
+* First of all let's replace calculated FA with reported one when the former 
+* is negative. Since it's not possible to have negative FA, I will assume the 
+* reported value to be correct when the calculated value turns out negative.
+* In the vast majority of these cases, firms reported 0 FA.
+count if tot_FA_calc<0
+count if tot_FA_calc<0 & tot_FA==0
+replace tot_FA_calc = tot_FA if tot_FA_calc < 0
+
+* Unfortunately we cannot do the same for costs of production (materials) since 
+* no official subtotal is reported. Thus we drop observations where the calculated
+* value is negative
+drop if cost_prod_total<0
+
+* Drop self-reported values, we don't care anymore
+drop tot_CA tot_FA tot_DA tot_LA tot_A tot_R tot_CC tot_CE tot_C
+
+* Round all variables to full dollars and recalculate totals
 foreach var of varlist *_calc cost_* revenue_* {
-    replace `var' = round(`var', 0.01)
+    replace `var' = round(`var')
 }
-ereplace tot_C_calc = rowtotal(cost*), missing
 replace revenue_op_total = revenue_op_dom + revenue_op_exp
 replace tot_R_calc = revenue_op_total + revenue_nop_total
-replace tot_A_calc = tot_CA_calc + tot_FA_calc + tot_DA_calc + tot_LA_calc
+ereplace tot_C_calc = rowtotal(cost*), missing
 
 * Generate result (profit/loss)
 gen double result = tot_R_calc - tot_C_calc
 
-* Now we can also drop zeros (if a firm has zero total assets, zero total revenue, or zero total costs)
-drop if round(tot_C_calc)==0 | round(tot_R_calc)==0 | round(tot_A_calc)==0
-
-* I will either use FA or FA+DA or A. Definitely not CA or LA
-gen double tot_AFA_calc = tot_FA_calc + tot_DA_calc, after(tot_FA_calc)
-gen double tot_TFA_calc = tot_FA_calc, after(tot_FA_calc)
-drop tot_CA_calc tot_LA_calc tot_FA_calc tot_DA_calc
-lab var tot_AFA_calc "(=) TOTAL ALL FIXED ASSETS - CALCULATED"
-lab var tot_TFA_calc "(=) TOTAL TANGIBLE FIXED ASSETS - CALCULATED"
-
 * Drop if variables of interest for estimation are zero
-    drop if round(tot_TFA_calc)==0 // tangible fixed assets, don't care about other assets
-    drop if round(revenue_op_total)==0 // don't care about non-operative revenue
-    drop if round(cost_labour_total)==0 // 0 labor not credible and not viable for our estimation
-    drop if round(cost_prod_total)==0 // 0 materials not credible and not viable for our estimation
+drop if tot_FA_calc==0 // tangible fixed assets, don't care about other assets
+drop if revenue_op_total==0 // don't care about non-operative revenue
+drop if cost_prod_total==0 // 0 materials not credible and not viable for our estimation
+drop if cost_labour_total==0 // 0 labor not credible and not viable for our estimation
+assert tot_FA_calc>0 & revenue_op_total>0 & cost_prod_total>0 & cost_labour_total>0
 
 * Keep only variables of interest
-keep id_sri year sub_date tot_TFA_calc revenue_op_total cost_prod_total cost_labour_total
+keep id_sri year sub_date tot_FA_calc revenue_op_total cost_prod_total cost_labour_total
+
+* Rename variables (remove _calc and _total suffixes)
+rename (tot_FA_calc  revenue_op_total   cost_prod_total cost_labour_total) ///
+       (fixed_assets operative_revenues material_costs  labour_costs)
 
 * Deal with duplicates (id-year)
+gsort id_sri year sub_date
+
     * First drop exact duplicates to reduce number observations instantly
     gduplicates drop
     
     * Eliminate remaining duplicates by keeping latest submission only
-    gsort id_sri year sub_date
     by id_sri year: gegen last_time = max(sub_date)
     format last_time %tc
     keep if sub_date==last_time
     drop last_time sub_date
 
-    * At this point, I take the rows with the highest total values
+    * At this point, I deliberately take the rows with the highest total values (few cases)
     gduplicates tag id_sri year, gen(dup)
-    egen double rowtot = rowtotal(tot_TFA_calc revenue_op_total cost_prod_total cost_labour_total)
-    bys id_sri year: egen double max_rowtot = max(rowtot)
-    bys id_sri year: egen double min_rowtot = min(rowtot)
+    egen double rowtot = rowtotal(fixed_assets operative_revenues material_costs labour_costs)
+    by id_sri year: egen double max_rowtot = max(rowtot)
+    by id_sri year: egen double min_rowtot = min(rowtot)
     drop if rowtot==min_rowtot & dup>0 & max_rowtot!=min_rowtot
     drop dup rowtot max_rowtot min_rowtot
-        
-//     * There are still a few exact duplicates that are not considered exact due 
-//     * to rounding or where totals are identical but distribution across different 
-//     * cost positions is different. Here, I keep a random one since I have no way 
-//     * to know.
-//     gduplicates tag id_sri year, gen(dup)
-//     set seed 16012024
-//     gen rnd = runiform() if dup>0
-//     bys id_sri year: egen max_rnd = max(rnd)
-//     drop if rnd!=max_rnd & dup>0
-//     drop dup rnd max_rnd
     
     * Drop public oil exporter. It is extremely huge, not at all comparable with 
     * any other firms in Ecuador, and it was part of OPEC at the time such that 
@@ -218,21 +204,11 @@ bys id_sri: ereplace filings_count = sum(filings_count)
 gen filings_due = (year>=first_filing & year<=last_filing)
 bys id_sri: ereplace filings_due = sum(filings_due)
 
-* Drop all firms which have missing filings. I deem their data unreliable for now.
-* Alternatively, I could take averages to fill in
-drop if filings_due!=filings_count
-drop filings_count filings_due 
-
 * Generate entry/exit/active years
 gen entry  = (year==first_filing)
 gen exit   = (year==last_filing)
 gen active = !(_fillin)
 drop _fillin
-
-* Rename variables (remove _calc and _total suffixes)
-rename *_calc *
-rename *_total *
-rename(tot_TFA revenue_op cost_prod cost_labour) (tang_fixed_assets operative_revenues material_costs labour_costs)
 
 * Generate is_exporter dummy
 // gen is_exporter = (revenue_op_exp > 0) if !missing(revenue_op_exp)
@@ -242,7 +218,20 @@ order id_sri year *_filing entry exit active *_assets *_revenues *_costs
 
 * Format variables
 format id_sri year *_filing entry exit active %10.0g
-format *_assets *_revenues *_costs %20.2f
+format *_assets *_revenues *_costs %20.0g
+
+* Drop all firms which have missing filings. I deem their data unreliable for now.
+* Alternatively, I could take averages to fill in
+{
+    * Store observations with this problem aside and perform imputation on a 
+    * separate file
+    preserve
+        keep if filings_due!=filings_count
+        save "$pathCle/input/cleaning_intermediate/F10X/firms_to_impute.dta", replace
+    restore
+}
+drop if filings_due!=filings_count
+drop filings_count filings_due 
 
 * Save
 compress

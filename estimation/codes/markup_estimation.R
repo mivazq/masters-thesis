@@ -16,9 +16,13 @@ source('~/data/transactions_ecuador/3_mivazq/Masters_Thesis/setup.R')
 
 # Load data
 df_tax_filings <- fread(file=paste0(pathCle, "output/tax_filings.csv"), na.strings="")
+df_tax_filings_imp_exp <- fread(file=paste0(pathCle, "output/tax_filings_imputed_expansion.csv"), na.strings="")
 df_firm_info   <- fread(file=paste0(pathCle, "output/firm_info.csv"), na.strings="")
 df_deflators   <- fread(file=paste0(pathCle, "output/deflators.csv"), na.strings="")
 df_cpi_assets  <- fread(file=paste0(pathCle, "output/assets_deflators.csv"), na.strings="")
+
+# Append baseline filings with expansion set thanks to imputation
+df_tax_filings <- rbind(df_tax_filings[, impute := 0], df_tax_filings_imp_exp)
 
 # Merge tax filings panel with firm industry information
 panel <- merge(df_firm_info, df_tax_filings, by="id_sri", all.y=T)
@@ -42,7 +46,7 @@ panel <- merge(panel, df_cpi_assets, by="year", all.x=T)
 setorder(panel, "id_sri", "year")
 
 # Deflate assets
-panel[, tang_fixed_assets := tang_fixed_assets/cpi*100]
+panel[, fixed_assets := fixed_assets/cpi*100]
 
 # Deflate other monetary variables
 panel[, c("operative_revenues", "material_costs", "labour_costs") := lapply(.SD, function(x) x/panel[["deflator"]]*100), .SDcols = c("operative_revenues", "material_costs", "labour_costs")]
@@ -115,7 +119,7 @@ dev.off()
 
 
 ### TRANSACTION COSTS
-panel[, investment := tang_fixed_assets-0.9*shift(tang_fixed_assets), by=id_sri] # assume 10% depr. rate
+panel[, investment := fixed_assets-0.9*shift(fixed_assets), by=id_sri] # assume 10% depr. rate
 
 df_purchases <- fread(file=paste0(pathCle, "output/intermediate_cost.csv"), na.strings="")
 compare_trans <- merge(panel[active==1, .(id_sri,year,material_costs,investment)], df_purchases, by=c("id_sri","year"), all.x = T)
@@ -188,7 +192,7 @@ dt_est <- panel[, .(id = id_sri,
                 # div = isic_division,
                 # e = is_exporter,
                 y = log(operative_revenues), 
-                k = log(tang_fixed_assets), 
+                k = log(fixed_assets), 
                 l = log(labour_costs),
                 m = log(material_costs),
                 v = log(sales_costs))]
@@ -197,6 +201,12 @@ dt_est <- panel[, .(id = id_sri,
 dt_est[, `:=` (v2 = v^2,
                k2 = k^2,
                vk = v * k)]
+
+# Create table to store OLS estimates by sector which will be used as initial values
+# for GMM.
+sectors <- sort(unique(dt_est$sec))
+dt_init <- data.table(sec = rep(sectors,2),
+                      pf  = c(rep("CD",length(sectors)), rep("TL",length(sectors))))
 
 # Iterate over industries 
 for (ind in sort(unique(dt_est$sec))) {
@@ -211,11 +221,11 @@ for (ind in sort(unique(dt_est$sec))) {
         # Generate polynomial terms on inputs variables for Phi_hat estimation (prefix: "fs")
         degree <- 3 # degree of polynomial expansion
         for (iter1 in 1:degree) {
-            dt_est[, paste0("fs_","v", iter1) := v^iter1]
-            dt_est[, paste0("fs_","k", iter1) := k^iter1]
+            dt_est[, paste0("fs_", "v", iter1) := v^iter1]
+            dt_est[, paste0("fs_", "k", iter1) := k^iter1]
             
             for (iter2 in 1:degree) {
-                dt_est[, paste0("fs_","v", iter1, "k", iter2) := v^iter2 * k^iter1]
+                dt_est[, paste0("fs_", "v", iter1, "k", iter2) := v^iter1 * k^iter2]
             }
         }
         rm(iter1, iter2, degree) # remove useless values
@@ -256,10 +266,12 @@ for (ind in sort(unique(dt_est$sec))) {
         # OLS estimates on Cobb Douglas production function
         olscd_model <- feols(y ~ v + k                | year, data = dt_est, subset = use_2nd & sec_sel, panel.id=c("id","year"))
         dt_est[sec_sel, olscd := list(olscd_model$coefficients)]
-        
+        dt_init[sec==ind & pf=="CD", names(as.list(olscd_model$coefficients)) := as.list(olscd_model$coefficients)]
+
         # OLS estimates on Translog production function
         olstl_model <- feols(y ~ v + k + v2 + k2 + vk | year, data = dt_est, subset = use_2nd & sec_sel, panel.id=c("id","year"))
         dt_est[sec_sel, olstl := list(olstl_model$coefficients)]
+        dt_init[sec==ind & pf=="TL", names(as.list(olstl_model$coefficients)) := as.list(olstl_model$coefficients)]
         
         # ACF estimates using DLW method on Cobb Douglas production function
         dt_est[sec_sel, dlwcd := list(DLW_CD(init_par = c(1, olscd_model$coefficients["v"], olscd_model$coefficients["k"])))]
@@ -270,7 +282,7 @@ for (ind in sort(unique(dt_est$sec))) {
     message("\n")
 }
 
-rm(fs_model, ols_model, sec_sel, ind)
+rm(fs_model, olscd_model, olstl_model, sec_sel, ind)
 
 #///////////////////////////////////////////////////////////////////////////////
 #----               4 - COMPUTE MARK-UPS AND PRODUCTIVITIES                 ----

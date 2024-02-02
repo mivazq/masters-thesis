@@ -17,7 +17,7 @@ GMM_DLW <- function(BETAS, PHI, PHI_LAG, Z, X, X_LAG, Y, C) {
     # OMEGA_lag3 <- OMEGA_lag2 * OMEGA_lag    # lag^3
     # OMEGA_lag_pol <- cbind(C, OMEGA_lag, OMEGA_lag2, OMEGA_lag3) # third order is too high, highly collinear with 2nd order "system is computationally singular: reciprocal condition number = 2.20816e-16"
     OMEGA_lag_pol <- cbind(C, OMEGA_lag, OMEGA_lag2)
-    g_b <- solve(t(OMEGA_lag_pol) %*% OMEGA_lag_pol) %*% t(OMEGA_lag_pol) %*% OMEGA # invert to get g() function
+    g_b <- solve(t(OMEGA_lag_pol) %*% OMEGA_lag_pol) %*% t(OMEGA_lag_pol) %*% OMEGA # (X'X)⁻¹(X'Y), i.e. regress OMEGA on OMEGA_lag_pol
     XI <- OMEGA - OMEGA_lag_pol %*% g_b # ξ
     crit <- t(t(Z) %*% XI) %*% (t(Z) %*% XI) # moments to be minimized
     return(crit)

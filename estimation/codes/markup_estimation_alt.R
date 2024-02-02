@@ -219,17 +219,17 @@ for (ind in sort(unique(dt_est$sec))) {
         # Generate polynomial terms on inputs variables for Phi_hat estimation (prefix: "fs")
         degree <- 3 # degree of polynomial expansion
         for (iter1 in 1:degree) {
-            dt_est[, paste0("fs_","l", iter1) := l^iter1]
-            dt_est[, paste0("fs_","m", iter1) := m^iter1]
-            dt_est[, paste0("fs_","k", iter1) := k^iter1]
+            dt_est[, paste0("fs_", "l", iter1) := l^iter1]
+            dt_est[, paste0("fs_", "m", iter1) := m^iter1]
+            dt_est[, paste0("fs_", "k", iter1) := k^iter1]
             
             for (iter2 in 1:degree) {
-                dt_est[, paste0("fs_","l", iter1, "k", iter2) := l^iter2 * k^iter1]
-                dt_est[, paste0("fs_","m", iter1, "k", iter2) := m^iter2 * k^iter1]
-                dt_est[, paste0("fs_","l", iter1, "m", iter2) := l^iter2 * m^iter1]
+                dt_est[, paste0("fs_", "l", iter1, "k", iter2) := l^iter1 * k^iter2]
+                dt_est[, paste0("fs_", "m", iter1, "k", iter2) := m^iter1 * k^iter2]
+                dt_est[, paste0("fs_", "l", iter1, "m", iter2) := l^iter1 * m^iter2]
             }
             
-            dt_est[, paste0("fs_","l", iter1,"m", iter1,"k", iter1) := l^iter1 * m^iter1 * k^iter1]
+            dt_est[, paste0("fs_", "l", iter1, "m", iter1, "k", iter1) := l^iter1 * m^iter1 * k^iter1]
         }
         rm(iter1, iter2, degree) # remove useless values
         fs_vars <- colnames(dt_est)[grep("^fs_", colnames(dt_est))] # list all "fs_" vars
@@ -379,17 +379,17 @@ p50   <- function (x) quantile(x, prob=c(0.50))
 p75   <- function (x) quantile(x, prob=c(0.75))
 p90   <- function (x) quantile(x, prob=c(0.90))
 
-### Cobb-Douglas production function (OLS vs. DLW)
+### Cobb-Douglas production function (OLS vs. DLW) LABOUR
 dist_table_olscd <- dcast.data.table(data = dt_est[use_1st], 
                                      formula = sec ~.,
                                      fun = list(mean, sd, min, p10, p25, p50, p75, p90, max),
-                                     value.var = "mu_olscd")
+                                     value.var = "mu_l_olscd")
 setnames(dist_table_olscd, 2:10, c("mean","sd","min","p10", "p25", "p50", "p75", "p90", "max"))
 dist_table_olscd[, est := "OLS"]
 dist_table_dlwscd <- dcast.data.table(data = dt_est[use_1st], 
                                      formula = sec ~.,
                                      fun = list(mean, sd, min, p10, p25, p50, p75, p90, max),
-                                     value.var = "mu_dlwcd")
+                                     value.var = "mu_l_dlwcd")
 setnames(dist_table_dlwscd, 2:10, c("mean","sd","min","p10", "p25", "p50", "p75", "p90", "max"))
 dist_table_dlwscd[, est := "DLW"]
 
@@ -397,21 +397,45 @@ dist_table_dlwscd[, est := "DLW"]
 dist_table_cd <- rbind(dist_table_olscd, dist_table_dlwscd)
 setorder(dist_table_cd, "sec", "est")
 dist_table_cd <- dist_table_cd[, .(sec, est, mean, sd, min, p10, p25, p50, p75, p90, max)]
-write_xlsx(dist_table_cd, paste0(pathWD, "meeting prep/meeting 2/CD_markups.xlsx"))
+write_xlsx(dist_table_cd, paste0(pathWD, "meeting prep/meeting 2/CD_markups_L.xlsx"))
 
 
 
-### Translog production function (OLS vs. DLW)
+### Cobb-Douglas production function (OLS vs. DLW) MATERIALS
+dist_table_olscd <- dcast.data.table(data = dt_est[use_1st], 
+                                     formula = sec ~.,
+                                     fun = list(mean, sd, min, p10, p25, p50, p75, p90, max),
+                                     value.var = "mu_m_olscd")
+setnames(dist_table_olscd, 2:10, c("mean","sd","min","p10", "p25", "p50", "p75", "p90", "max"))
+dist_table_olscd[, est := "OLS"]
+dist_table_dlwscd <- dcast.data.table(data = dt_est[use_1st], 
+                                      formula = sec ~.,
+                                      fun = list(mean, sd, min, p10, p25, p50, p75, p90, max),
+                                      value.var = "mu_m_dlwcd")
+setnames(dist_table_dlwscd, 2:10, c("mean","sd","min","p10", "p25", "p50", "p75", "p90", "max"))
+dist_table_dlwscd[, est := "DLW"]
+
+# Combine OLS and DLW, sort, write to Excel
+dist_table_cd <- rbind(dist_table_olscd, dist_table_dlwscd)
+setorder(dist_table_cd, "sec", "est")
+dist_table_cd <- dist_table_cd[, .(sec, est, mean, sd, min, p10, p25, p50, p75, p90, max)]
+write_xlsx(dist_table_cd, paste0(pathWD, "meeting prep/meeting 2/CD_markups_M.xlsx"))
+
+
+
+
+
+### Translog production function (OLS vs. DLW) LABOUR
 dist_table_olstl <- dcast.data.table(data = dt_est[use_1st], 
                                      formula = sec ~.,
                                      fun = list(mean, sd, min, p10, p25, p50, p75, p90, max),
-                                     value.var = "mu_olstl")
+                                     value.var = "mu_l_olstl")
 setnames(dist_table_olstl, 2:10, c("mean","sd","min","p10", "p25", "p50", "p75", "p90", "max"))
 dist_table_olstl[, est := "OLS"]
 dist_table_dlwstl <- dcast.data.table(data = dt_est[use_1st], 
                                       formula = sec ~.,
                                       fun = list(mean, sd, min, p10, p25, p50, p75, p90, max),
-                                      value.var = "mu_dlwtl")
+                                      value.var = "mu_l_dlwtl")
 setnames(dist_table_dlwstl, 2:10, c("mean","sd","min","p10", "p25", "p50", "p75", "p90", "max"))
 dist_table_dlwstl[, est := "DLW"]
 
@@ -419,6 +443,29 @@ dist_table_dlwstl[, est := "DLW"]
 dist_table_tl <- rbind(dist_table_olstl, dist_table_dlwstl)
 setorder(dist_table_tl, "sec", "est")
 dist_table_tl <- dist_table_tl[, .(sec, est, mean, sd, min, p10, p25, p50, p75, p90, max)]
-write_xlsx(dist_table_tl, paste0(pathWD, "meeting prep/meeting 2/TL_markups.xlsx"))
+write_xlsx(dist_table_tl, paste0(pathWD, "meeting prep/meeting 2/TL_markups_L.xlsx"))
+
+
+
+
+### Translog production function (OLS vs. DLW) MATERIALS
+dist_table_olstl <- dcast.data.table(data = dt_est[use_1st], 
+                                     formula = sec ~.,
+                                     fun = list(mean, sd, min, p10, p25, p50, p75, p90, max),
+                                     value.var = "mu_m_olstl")
+setnames(dist_table_olstl, 2:10, c("mean","sd","min","p10", "p25", "p50", "p75", "p90", "max"))
+dist_table_olstl[, est := "OLS"]
+dist_table_dlwstl <- dcast.data.table(data = dt_est[use_1st], 
+                                      formula = sec ~.,
+                                      fun = list(mean, sd, min, p10, p25, p50, p75, p90, max),
+                                      value.var = "mu_m_dlwtl")
+setnames(dist_table_dlwstl, 2:10, c("mean","sd","min","p10", "p25", "p50", "p75", "p90", "max"))
+dist_table_dlwstl[, est := "DLW"]
+
+# Combine OLS and DLW, sort, write to Excel
+dist_table_tl <- rbind(dist_table_olstl, dist_table_dlwstl)
+setorder(dist_table_tl, "sec", "est")
+dist_table_tl <- dist_table_tl[, .(sec, est, mean, sd, min, p10, p25, p50, p75, p90, max)]
+write_xlsx(dist_table_tl, paste0(pathWD, "meeting prep/meeting 2/TL_markups_M.xlsx"))
 
 
