@@ -438,6 +438,9 @@ tfp_cor[pf=="TL" & est=="DLW", c("y", "v", "k") := list(cor(dt_est$tfp_dlwtl, dt
                                                         cor(dt_est$tfp_dlwtl, dt_est$v, use="pairwise"),
                                                         cor(dt_est$tfp_dlwtl, dt_est$k, use="pairwise"))]
 
+
+
+
 # Construct aggregate mark-up and plot evolution
 agg_mu <- data.table(pf   = c(rep("CD",2), rep("TL", 2)),
                      est  = rep(c(rep("OLS",1),rep("DLW",1)),2),
@@ -448,6 +451,7 @@ for (yyy in 2008:2011) {
     agg_mu[pf=="TL" & est=="OLS" & year==yyy, value := weighted.mean(dt_est[year==yyy]$mu_olstl, w = exp(dt_est[year==yyy]$v), na.rm = T)]
     agg_mu[pf=="TL" & est=="DLW" & year==yyy, value := weighted.mean(dt_est[year==yyy]$mu_dlwtl, w = exp(dt_est[year==yyy]$v), na.rm = T)]
 }
+rm(yyy)
 ggplot(agg_mu, aes(x = year, y = value, color = est, linetype = pf)) +
     geom_line() +
     geom_point() +
