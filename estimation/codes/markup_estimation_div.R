@@ -187,15 +187,15 @@ panel[, sales_costs := material_costs + labour_costs]
 
 # Create panel datatable (v = simply l + m)
 dt_est <- panel[, .(id = id_sri, 
-                year = year, 
-                sec = isic_section,
-                # div = isic_division,
-                # e = is_exporter,
-                y = log(operative_revenues), 
-                k = log(fixed_assets), 
-                l = log(labour_costs),
-                m = log(material_costs),
-                v = log(sales_costs))]
+                    year = year, 
+                    sec = isic_division,
+                    # div = isic_division,
+                    # e = is_exporter,
+                    y = log(operative_revenues), 
+                    k = log(fixed_assets), 
+                    l = log(labour_costs),
+                    m = log(material_costs),
+                    v = log(sales_costs))]
 
 # Create new variables needed for translog production function
 dt_est[, `:=` (v2 = v^2,
@@ -211,101 +211,121 @@ dt_init <- data.table(sec = rep(sectors,2),
 # Iterate over industries 
 for (ind in sort(unique(dt_est$sec))) {
     
+    if (ind %in% c("C10", "C12", "D16")) { # 
+        message("ESTIMATION FOR DIVISION ", ind, " SKIPPED, UNSUFFICIENT OBSERVATIONS\n")
+        next
+    }
+    
     # Logical vector for sector selection and first stage selection
     sec_sel <- dt_est$sec==ind
     use_1st  <- !is.na(dt_est$y)
     
-    message(paste("ESTIMATING FIRST STAGE FOR SECTION "), ind)
+    message("ESTIMATING FIRST STAGE FOR DIVISION ", ind)
     
     ### FIRST STAGE
-        # Generate polynomial terms on inputs variables for Phi_hat estimation (prefix: "fs")
-        degree <- 3 # degree of polynomial expansion
-        for (iter1 in 1:degree) {
-            dt_est[, paste0("fs_", "v", iter1) := v^iter1]
-            dt_est[, paste0("fs_", "k", iter1) := k^iter1]
-            
-            for (iter2 in 1:degree) {
-                dt_est[, paste0("fs_", "v", iter1, "k", iter2) := v^iter1 * k^iter2]
-            }
+    # Generate polynomial terms on inputs variables for Phi_hat estimation (prefix: "fs")
+    degree <- 3 # degree of polynomial expansion
+    for (iter1 in 1:degree) {
+        dt_est[, paste0("fs_", "v", iter1) := v^iter1]
+        dt_est[, paste0("fs_", "k", iter1) := k^iter1]
+        
+        for (iter2 in 1:degree) {
+            dt_est[, paste0("fs_", "v", iter1, "k", iter2) := v^iter1 * k^iter2]
         }
-        rm(iter1, iter2, degree) # remove useless values
-        fs_vars <- colnames(dt_est)[grep("^fs_", colnames(dt_est))] # list all "fs_" vars
-        
-        # Run first-stage estimation
-        frml <- paste("y ~",paste(fs_vars, collapse = " + "),"| year") # formula
-        fs_model <- feols(as.formula(frml), data = dt_est, subset = use_1st & sec_sel, panel.id=c("id","year"))
-        
-        # Store estimates of expected output (phi_hat) and measurement error (epsilon_hat) 
-        dt_est[use_1st & sec_sel, `:=` (Phi_hat     = predict(fs_model), 
-                                        epsilon_hat = residuals(fs_model))]
-        dt_est[, Phi_hat_lag := shift(Phi_hat, type="lag"), by = id]
-        
-        # Drop first stage variables (no longer needed)
-        dt_est[, (fs_vars) := NULL]
-        rm(fs_vars, frml)
+    }
+    rm(iter1, iter2, degree) # remove useless values
+    fs_vars <- colnames(dt_est)[grep("^fs_", colnames(dt_est))] # list all "fs_" vars
+    
+    # Run first-stage estimation
+    frml <- paste("y ~",paste(fs_vars, collapse = " + "),"| year") # formula
+    fs_model <- feols(as.formula(frml), data = dt_est, subset = use_1st & sec_sel, panel.id=c("id","year"))
+    
+    # Store estimates of expected output (phi_hat) and measurement error (epsilon_hat) 
+    dt_est[use_1st & sec_sel, `:=` (Phi_hat     = predict(fs_model), 
+                                    epsilon_hat = residuals(fs_model))]
+    dt_est[, Phi_hat_lag := shift(Phi_hat, type="lag"), by = id]
+    
+    # Drop first stage variables (no longer needed)
+    dt_est[, (fs_vars) := NULL]
+    rm(fs_vars, frml)
     
     
-    message(paste("ESTIMATING SECOND STAGE FOR SECTION "), ind)
+    message("ESTIMATING SECOND STAGE FOR DIVISION ", ind)
     
     ### SECOND STAGE
-        # Create new variables needed for productivity estimation
-        dt_est[, `:=` (v_lag = shift(v, 1),
-                       k_lag = shift(k, 1)), 
-               by = id]
-        dt_est[, `:=` (v_lag2     = v_lag^2,
-                       k_lag2     = k_lag^2,
-                       v_lagk_lag = v_lag * k_lag,
-                       v_lagk     = v_lag * k)]
-        
-        # Generate constant term and indicator for which observations are to be used
-        # i.e., we need current period inputs & phi, and lagged inputs & phi
-        # we also select for the sector here.
-        dt_est[, cons := 1]
-        use_2nd  <- !is.na(dt_est$v) & !is.na(dt_est$v_lag) & !is.na(dt_est$Phi_hat) & !is.na(dt_est$Phi_hat_lag)
-        
-        # OLS estimates on Cobb Douglas production function
-        olscd_model <- feols(y ~ v + k                | year, data = dt_est, subset = use_2nd & sec_sel, panel.id=c("id","year"))
-        dt_est[sec_sel, olscd := list(olscd_model$coefficients)]
-        dt_init[sec==ind & pf=="CD", names(as.list(olscd_model$coefficients)) := as.list(olscd_model$coefficients)]
-
-        # OLS estimates on Translog production function
-        olstl_model <- feols(y ~ v + k + v2 + k2 + vk | year, data = dt_est, subset = use_2nd & sec_sel, panel.id=c("id","year"))
-        dt_est[sec_sel, olstl := list(olstl_model$coefficients)]
-        dt_init[sec==ind & pf=="TL", names(as.list(olstl_model$coefficients)) := as.list(olstl_model$coefficients)]
-        
-        # ACF estimates using DLW method on Cobb Douglas production function
-        dt_est[sec_sel, dlwcd := list(DLW_CD(init_par = c(1, olscd_model$coefficients["v"], olscd_model$coefficients["k"])))]
-        
-        # ACF estimates using DLW method on Translog production function
-        dt_est[sec_sel, dlwtl := list(DLW_TL(init_par = c(0, 0, 0, 0, 0, 0)))]
+    # Create new variables needed for productivity estimation
+    dt_est[, `:=` (v_lag = shift(v, 1),
+                   k_lag = shift(k, 1)), 
+           by = id]
+    dt_est[, `:=` (v_lag2     = v_lag^2,
+                   k_lag2     = k_lag^2,
+                   v_lagk_lag = v_lag * k_lag,
+                   v_lagk     = v_lag * k)]
+    
+    # Generate constant term and indicator for which observations are to be used
+    # i.e., we need current period inputs & phi, and lagged inputs & phi
+    # we also select for the sector here.
+    dt_est[, cons := 1]
+    use_2nd  <- !is.na(dt_est$v) & !is.na(dt_est$v_lag) & !is.na(dt_est$Phi_hat) & !is.na(dt_est$Phi_hat_lag)
+    
+    # OLS estimates on Cobb Douglas production function
+    olscd_model <- feols(y ~ v + k                | year, data = dt_est, subset = use_2nd & sec_sel, panel.id=c("id","year"))
+    dt_est[sec_sel, olscd := list(olscd_model$coefficients)]
+    dt_init[sec==ind & pf=="CD", names(as.list(olscd_model$coefficients)) := as.list(olscd_model$coefficients)]
+    
+    # OLS estimates on Translog production function
+    olstl_model <- feols(y ~ v + k + v2 + k2 + vk | year, data = dt_est, subset = use_2nd & sec_sel, panel.id=c("id","year"))
+    dt_est[sec_sel, olstl := list(olstl_model$coefficients)]
+    dt_init[sec==ind & pf=="TL", names(as.list(olstl_model$coefficients)) := as.list(olstl_model$coefficients)]
+    
+    # Too few obs for J66 TL, coefficient for "vk" gets dropped in OLS, set to 0
+    if (ind=="J66") {
+        new_coeffs <- c(olstl_model$coefficients, vk=0)
+        dt_est[sec_sel, olstl := list(new_coeffs)]
+        dt_init[sec==ind & pf=="TL", names(new_coeffs) := as.list(new_coeffs)]
+        rm(new_coeffs)
+    }
+    
+    # ACF estimates using DLW method on Cobb Douglas production function
+    dt_est[sec_sel, dlwcd := list(DLW_CD(init_par = c(1, olscd_model$coefficients["v"], olscd_model$coefficients["k"])))]
+    
+    # ACF estimates using DLW method on Translog production function
+    dt_est[sec_sel, dlwtl := list(DLW_TL(init_par = c(0, 0, 0, 0, 0, 0)))]
     
     message("\n")
 }
 
 rm(fs_model, olscd_model, olstl_model, sec_sel, ind)
 
+# Set missings
+for (ind in c("C10", "C12", "D16")) {
+    dt_est[sec==ind, c("olscd", "dlwcd", "olstl", "dlwtl") := NA]
+}
+
 #///////////////////////////////////////////////////////////////////////////////
 #----               4 - COMPUTE MARK-UPS AND PRODUCTIVITIES                 ----
 #///////////////////////////////////////////////////////////////////////////////
 
+
+
 # Extract individual betas from coefficient lists
-dt_est[, beta_v_olscd := sapply(olscd, function(x) x[["v"]])]
-dt_est[, beta_k_olscd := sapply(olscd, function(x) x[["k"]])]
+dt_est[sec %nin% c("C10", "C12", "D16"), beta_v_olscd := sapply(olscd, function(x) x[["v"]])]
+dt_est[sec %nin% c("C10", "C12", "D16"), beta_k_olscd := sapply(olscd, function(x) x[["k"]])]
 dt_est[, olscd := NULL]
-dt_est[, beta_v_dlwcd := sapply(dlwcd, function(x) x[["v"]])]
-dt_est[, beta_k_dlwcd := sapply(dlwcd, function(x) x[["k"]])]
+dt_est[sec %nin% c("C10", "C12", "D16"), beta_v_dlwcd := sapply(dlwcd, function(x) x[["v"]])]
+dt_est[sec %nin% c("C10", "C12", "D16"), beta_k_dlwcd := sapply(dlwcd, function(x) x[["k"]])]
 dt_est[, dlwcd := NULL]
-dt_est[, beta_v1_olstl := sapply(olstl, function(x) x[["v"]])]
-dt_est[, beta_k1_olstl := sapply(olstl, function(x) x[["k"]])]
-dt_est[, beta_v2_olstl := sapply(olstl, function(x) x[["v2"]])]
-dt_est[, beta_k2_olstl := sapply(olstl, function(x) x[["k2"]])]
-dt_est[, beta_vk_olstl := sapply(olstl, function(x) x[["vk"]])]
+dt_est[sec %nin% c("C10", "C12", "D16"), beta_v1_olstl := sapply(olstl, function(x) x[["v"]])]
+dt_est[sec %nin% c("C10", "C12", "D16"), beta_k1_olstl := sapply(olstl, function(x) x[["k"]])]
+dt_est[sec %nin% c("C10", "C12", "D16"), beta_v2_olstl := sapply(olstl, function(x) x[["v2"]])]
+dt_est[sec %nin% c("C10", "C12", "D16"), beta_k2_olstl := sapply(olstl, function(x) x[["k2"]])]
+dt_est[sec %nin% c("C10", "C12", "D16"), beta_vk_olstl := sapply(olstl, function(x) x[["vk"]])]
 dt_est[, olstl := NULL]
-dt_est[, beta_v1_dlwtl := sapply(dlwtl, function(x) x[["v"]])]
-dt_est[, beta_k1_dlwtl := sapply(dlwtl, function(x) x[["k"]])]
-dt_est[, beta_v2_dlwtl := sapply(dlwtl, function(x) x[["v2"]])]
-dt_est[, beta_k2_dlwtl := sapply(dlwtl, function(x) x[["k2"]])]
-dt_est[, beta_vk_dlwtl := sapply(dlwtl, function(x) x[["vk"]])]
+dt_est[sec %nin% c("C10", "C12", "D16"), beta_v1_dlwtl := sapply(dlwtl, function(x) x[["v"]])]
+dt_est[sec %nin% c("C10", "C12", "D16"), beta_k1_dlwtl := sapply(dlwtl, function(x) x[["k"]])]
+dt_est[sec %nin% c("C10", "C12", "D16"), beta_v2_dlwtl := sapply(dlwtl, function(x) x[["v2"]])]
+dt_est[sec %nin% c("C10", "C12", "D16"), beta_k2_dlwtl := sapply(dlwtl, function(x) x[["k2"]])]
+dt_est[sec %nin% c("C10", "C12", "D16"), beta_vk_dlwtl := sapply(dlwtl, function(x) x[["vk"]])]
 dt_est[, dlwtl := NULL]
 
 # Compute log TFP
@@ -329,36 +349,38 @@ dt_est[, mu_dlwtl := beta_v_dlwtl / alpha_v]
 
 # Table with number of observations/firms per sector available in whole panel, used
 # for first stage and second stage. First stage = simply active observations.
-df_sections <- fread(paste0(pathCle, "output/isic_codes_section.csv"))
-n_table <- df_sections[isic_section %nin% c("P","Q","R","S","T"), .(desc=isic_section_desc, sec=isic_section)]
-n_table[, full_panel_obs  := table(dt_est$sec)]
-n_table[, full_panel_ids  := table(unique(dt_est[,.(id,sec)])$sec)]
-n_table[, `1st_stage_obs` := table(dt_est[use_1st]$sec)]
-n_table[, `1st_stage_ids` := table(unique(dt_est[use_1st,.(id,sec)])$sec)]
-n_table[, `2nd_stage_obs` := table(dt_est[use_2nd]$sec)]
-n_table[, `2nd_stage_ids` := table(unique(dt_est[use_2nd,.(id,sec)])$sec)]
-write_xlsx(n_table, paste0(pathWD, "meeting prep/meeting 2/sample.xlsx"))
+df_sections <- fread(paste0(pathCle, "output/isic_codes_division.csv"))
+n_table <- df_sections[substr(isic_division,1,1) %nin% c("P","Q","R","S","T"), .(desc=isic_division_desc, sec=isic_division)]
+n_table[, full_panel_obs  := table(factor(dt_est$sec, levels = n_table$sec))]
+n_table[, full_panel_ids  := table(factor(unique(dt_est[,.(id,sec)])$sec, levels = n_table$sec))]
+n_table[, `1st_stage_obs` := table(factor(dt_est[use_1st]$sec, levels = n_table$sec))]
+n_table[, `1st_stage_ids` := table(factor(unique(dt_est[use_1st,.(id,sec)])$sec, levels = n_table$sec))]
+n_table[, `2nd_stage_obs` := table(factor(dt_est[use_2nd]$sec, levels = n_table$sec))]
+n_table[, `2nd_stage_ids` := table(factor(unique(dt_est[use_2nd,.(id,sec)])$sec, levels = n_table$sec))]
+write_xlsx(n_table, paste0(pathWD, "meeting prep/meeting 2/sample_div.xlsx"))
 
 
 
 # Custom percentile functions
-p10   <- function (x) quantile(x, prob=c(0.10))
-p25   <- function (x) quantile(x, prob=c(0.25))
-p50   <- function (x) quantile(x, prob=c(0.50))
-p75   <- function (x) quantile(x, prob=c(0.75))
-p90   <- function (x) quantile(x, prob=c(0.90))
+p10   <- function (x,na.rm=T) quantile(x, prob=c(0.10),na.rm=na.rm)
+p25   <- function (x,na.rm=T) quantile(x, prob=c(0.25),na.rm=na.rm)
+p50   <- function (x,na.rm=T) quantile(x, prob=c(0.50),na.rm=na.rm)
+p75   <- function (x,na.rm=T) quantile(x, prob=c(0.75),na.rm=na.rm)
+p90   <- function (x,na.rm=T) quantile(x, prob=c(0.90),na.rm=na.rm)
 
 ### Cobb-Douglas production function (OLS vs. DLW)
 dist_table_olscd <- dcast.data.table(data = dt_est[use_1st], 
                                      formula = sec ~.,
                                      fun = list(mean, sd, min, p10, p25, p50, p75, p90, max),
+                                     na.rm = T,
                                      value.var = "mu_olscd")
 setnames(dist_table_olscd, 2:10, c("mean","sd","min","p10", "p25", "p50", "p75", "p90", "max"))
 dist_table_olscd[, est := "OLS"]
 dist_table_dlwscd <- dcast.data.table(data = dt_est[use_1st], 
-                                     formula = sec ~.,
-                                     fun = list(mean, sd, min, p10, p25, p50, p75, p90, max),
-                                     value.var = "mu_dlwcd")
+                                      formula = sec ~.,
+                                      fun = list(mean, sd, min, p10, p25, p50, p75, p90, max),
+                                      na.rm = T,
+                                      value.var = "mu_dlwcd")
 setnames(dist_table_dlwscd, 2:10, c("mean","sd","min","p10", "p25", "p50", "p75", "p90", "max"))
 dist_table_dlwscd[, est := "DLW"]
 
@@ -366,7 +388,8 @@ dist_table_dlwscd[, est := "DLW"]
 dist_table_cd <- rbind(dist_table_olscd, dist_table_dlwscd)
 setorder(dist_table_cd, "sec", "est")
 dist_table_cd <- dist_table_cd[, .(sec, est, mean, sd, min, p10, p25, p50, p75, p90, max)]
-write_xlsx(dist_table_cd, paste0(pathWD, "meeting prep/meeting 2/CD_markups.xlsx"))
+dist_table_cd[sec %in% c("C10", "C12", "D16"), c("mean", "sd", "min", "p10", "p25", "p50", "p75", "p90", "max") := NA]
+write_xlsx(dist_table_cd, paste0(pathWD, "meeting prep/meeting 2/CD_markups_div.xlsx"))
 
 
 
@@ -374,12 +397,14 @@ write_xlsx(dist_table_cd, paste0(pathWD, "meeting prep/meeting 2/CD_markups.xlsx
 dist_table_olstl <- dcast.data.table(data = dt_est[use_1st], 
                                      formula = sec ~.,
                                      fun = list(mean, sd, min, p10, p25, p50, p75, p90, max),
+                                     na.rm = T,
                                      value.var = "mu_olstl")
 setnames(dist_table_olstl, 2:10, c("mean","sd","min","p10", "p25", "p50", "p75", "p90", "max"))
 dist_table_olstl[, est := "OLS"]
 dist_table_dlwstl <- dcast.data.table(data = dt_est[use_1st], 
                                       formula = sec ~.,
                                       fun = list(mean, sd, min, p10, p25, p50, p75, p90, max),
+                                      na.rm = T,
                                       value.var = "mu_dlwtl")
 setnames(dist_table_dlwstl, 2:10, c("mean","sd","min","p10", "p25", "p50", "p75", "p90", "max"))
 dist_table_dlwstl[, est := "DLW"]
@@ -388,7 +413,8 @@ dist_table_dlwstl[, est := "DLW"]
 dist_table_tl <- rbind(dist_table_olstl, dist_table_dlwstl)
 setorder(dist_table_tl, "sec", "est")
 dist_table_tl <- dist_table_tl[, .(sec, est, mean, sd, min, p10, p25, p50, p75, p90, max)]
-write_xlsx(dist_table_tl, paste0(pathWD, "meeting prep/meeting 2/TL_markups.xlsx"))
+dist_table_tl[sec %in% c("C10", "C12", "D16"), c("mean", "sd", "min", "p10", "p25", "p50", "p75", "p90", "max") := NA]
+write_xlsx(dist_table_tl, paste0(pathWD, "meeting prep/meeting 2/TL_markups_div.xlsx"))
 
 
 
@@ -411,7 +437,6 @@ tfp_cor[pf=="TL" & est=="OLS", c("y", "v", "k") := list(cor(dt_est$tfp_olstl, dt
 tfp_cor[pf=="TL" & est=="DLW", c("y", "v", "k") := list(cor(dt_est$tfp_dlwtl, dt_est$Phi_hat, use="pairwise"),
                                                         cor(dt_est$tfp_dlwtl, dt_est$v, use="pairwise"),
                                                         cor(dt_est$tfp_dlwtl, dt_est$k, use="pairwise"))]
-
 
 # Construct aggregate mark-up and plot evolution
 agg_mu <- data.table(pf   = c(rep("CD",2), rep("TL", 2)),
