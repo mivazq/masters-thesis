@@ -10,6 +10,7 @@
 *.csv
 *.xls
 *.xlsx
+*.gexf
 
 # Output files
 *.tex

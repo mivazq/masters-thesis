@@ -15,10 +15,13 @@ import importlib
 import datetime
 import math
 import random
+import scipy
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
+import networkit as nk
+from tqdm import tqdm
 
 # Store date to save files
 sysdate = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -26,6 +29,10 @@ sysdate = datetime.datetime.now().strftime("%Y-%m-%d")
 #///////////////////////////////////////////////////////////////////////////////
 #----                               2 - PATHS                               ----
 #///////////////////////////////////////////////////////////////////////////////
+
+# Add default pip install location to path
+if '/home/mivazq/.local/bin' not in sys.path:
+    sys.path.append('/home/mivazq/.local/bin')
 
 # Main paths for Ecuador project
 ecuRaw  = '/home/mivazq/data/transactions_ecuador/1_rawdata/'
