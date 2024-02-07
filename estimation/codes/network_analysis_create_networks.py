@@ -58,14 +58,15 @@ for year in range(2008, 2012):
     G = G_all_years[year]
     for node in tqdm(G.nodes()):
         i = node_attr_all_years[year][node_attr_all_years[year]['id_sri'] == node].index[0]
-        G.nodes[node]['est']      = node_attr_all_years.iloc[i]['est']
-        G.nodes[node]['soe']      = node_attr_all_years.iloc[i]['soe']
-        G.nodes[node]['province'] = node_attr_all_years.iloc[i]['province']
-        G.nodes[node]['region']   = node_attr_all_years.iloc[i]['region_geo']
-        G.nodes[node]['section']  = node_attr_all_years.iloc[i]['isic_section']
-        G.nodes[node]['division'] = node_attr_all_years.iloc[i]['isic_division']
+        G.nodes[node]['est']      = node_attr_all_years[year].iloc[i]['est']
+        G.nodes[node]['soe']      = node_attr_all_years[year].iloc[i]['soe']
+        G.nodes[node]['province'] = node_attr_all_years[year].iloc[i]['province']
+        G.nodes[node]['region']   = node_attr_all_years[year].iloc[i]['region_geo']
+        G.nodes[node]['section']  = node_attr_all_years[year].iloc[i]['isic_section']
+        G.nodes[node]['division'] = node_attr_all_years[year].iloc[i]['isic_division']
 
 # output graphs to gexf files for faster read later
 for year in range(2008, 2012):
     print("Storing gexf file for year", year)
-    nx.write_gexf(G_all_years[year], pathEst+"input/domestic_network_"+year+".gexf")
+    nx.write_gexf(G_all_years[year], pathEst+"input/domestic_network_"+str(year)+".gexf")
+
