@@ -19,6 +19,9 @@
 *                   To do this I download a crosswalk table prepared by the United
 *                   Nations which can be found at this link:
 *                   "https://unstats.un.org/unsd/classifications/Econ/tables/ISIC/ISIC4_ISIC31/ISIC4_ISIC31.txt"
+*
+*                   https://contenido.bce.fin.ec/documentos/PublicacionesNotas/Catalogo/CuentasNacionales/PIBProduccionCorriente2020p.xlsx
+*                   https://contenido.bce.fin.ec/documentos/PublicacionesNotas/Catalogo/CuentasNacionales/PIBProduccionConstante2020p.xlsx
 * Input:
 *                   $ecuRaw/prices/DECON_03_IPPDN_Serie_historica_CIIU_2023_11.xlsx
 *                   $ecuRaw/nomenclatures/crosswalk_4_3.1.txt
