@@ -28,7 +28,81 @@
 quietly do "~/data/transactions_ecuador/3_mivazq/Masters_Thesis/setup.do"
 ////////////////////////////////////////////////////////////////////////////////
 
-* First of all let's prepare sections of Rev 3 and Rev 3.1 to merge in with the
+* First let's create the general GDP deflator for other sections other then A,B,C,D
+
+* GDP data at constant prices
+    import excel "$ecuRaw/prices/PIBProduccion.xlsx", sheet("PIB_enfoque_PRODUCCIÓN_k") cellrange(B5:P10) case(lower) allstring clear
+
+    * Make variable names viable Stata variable names and rename
+    foreach var of varlist * {
+        qui replace `var' = subinstr(`var'," (p*)","",.) if _n==1 // provisory
+    }
+    foreach var of varlist * {
+        local varname : di `var'[1]
+        rename `var' y_`varname'
+    }
+    drop if _n==1
+
+    * Keep only "Production" series (we trying to emulate PPI)
+    keep if y_Variable=="Producción"
+    drop y_Variable
+
+    * Reshape and save
+    gen code = "lorem ipsum"
+    reshape long y_, i(code) j(year)
+    drop code
+    rename (y_) (gdp_constant_prices)
+    isid year
+    tempfile constant
+    save `constant'
+    
+* GDP data at current prices
+    import excel "$ecuRaw/prices/PIBProduccion.xlsx", sheet("PIB_enfoque_PRODUCCIÓN_c") cellrange(B5:P10) case(lower) allstring clear
+
+    * Make variable names viable Stata variable names and rename
+    foreach var of varlist * {
+        qui replace `var' = subinstr(`var'," (p*)","",.) if _n==1 // provisory
+    }
+    foreach var of varlist * {
+        local varname : di `var'[1]
+        rename `var' y_`varname'
+    }
+    drop if _n==1
+
+    * Keep only "Production" series (we trying to emulate PPI)
+    keep if y_Variable=="Producción"
+    drop y_Variable
+
+    * Reshape and save
+    gen code = "lorem ipsum"
+    reshape long y_, i(code) j(year)
+    drop code
+    rename (y_) (gdp_current_prices)
+    isid year
+    tempfile current
+    save `current'
+    
+* Merge the two
+use `constant'
+merge 1:1 year using `current', assert(match) nogen
+
+* Generate general PPI
+destring gdp_*, replace
+gen ppi = gdp_current_prices/gdp_constant_prices*100
+
+* Ensure 2007 is already base year (i.e. constant==current)
+assert ppi==100 if year==2007
+drop gdp_current_prices gdp_constant_prices
+
+* Keep only 2008-2011
+keep if year>=2008 & year<=2011
+
+* Save
+save $pathCle/output/deflators_general.dta, replace
+
+////////////////////////////////////////////////////////////////////////////////
+
+* Now let's prepare sections of Rev 3 and Rev 3.1 to merge in with the
 * crosswalks which only have numbers (thus no section information)
 
 * Prepare ISIC Rev3 sections to be merged into crosswalk file
@@ -121,6 +195,9 @@ rename (Código_CIIU_3 DESCRIPCIÓN) (code description)
 * Keep only necessary rows
 drop if missing(Ene_08)
 
+* Drop total index (not needed)
+drop if code=="T"
+
 * Keep only necessary years
 keep code description *_07 *_08 *_09 *_10 *_11
 
@@ -144,26 +221,11 @@ drop year_*
 * Generate variable to merge
 gen rev3 = substr(code, 2, .)
 replace rev3 = code if missing(rev3)
-replace rev3 = "Total" if code=="T"
 
 * Drop description
 drop description
 
 ////////////////////////////////////////////////////////////////////////////////
-
-* Deflators at level 0 (TOTAL)
-preserve
-    * Keep only class level
-    keep if rev3=="Total"
-    
-    * Export deflators
-    reshape long adj_year_, i(code) j(year)
-    rename adj_year_ general_deflator
-    drop code rev3
-    isid year
-    save $pathCle/output/deflators_general.dta, replace
-restore
-
 
 * Deflators at level 1 (SECTION)
 preserve
@@ -301,7 +363,7 @@ restore
 ////////////////////////////////////////////////////////////////////////////////
 
 * Let's now create a file with all ISIC Rev.3 codes at all levels and their
-* respective deflators
+* respective deflators, as well as the general deflator for non-ABCD
 
 * Load ISIC Rev 3.1 file and prepare
 import delimited $ecuRaw/nomenclatures/ISIC_codes.csv, encoding(UTF8) varnames(1) stringcols(_all) clear
@@ -375,9 +437,9 @@ drop deflator2 deflator3 deflator4 code
 rename (orig_code deflator1) (code deflator)
 
 * For the industries with missing deflators, I use the general one (economy-wide)
-merge m:1 year using $pathCle/output/deflators_general.dta, assert(match) nogen keepusing(general_deflator)
-replace deflator = general_deflator if missing(deflator)
-drop general_deflator
+merge m:1 year using $pathCle/output/deflators_general.dta, assert(match) nogen keepusing(ppi)
+replace deflator = ppi if missing(deflator)
+drop ppi
 
 * Export final complete file
 isid code year
@@ -392,35 +454,31 @@ rm $pathCle/output/deflators_isic_class.dta
 
 ////////////////////////////////////////////////////////////////////////////////
 
-* Finlly let's prepare deflators for assets, using Consumer Price Indexes instead
-* of Producer Price Indexes.
+* Finlly let's prepare deflators for assets, using capital prices table from World
+* Penn's Tables. 
 
 * Load CPI data
-import excel "$ecuRaw/prices/SERIE HISTORICA IPC_12_2023.xls", sheet("1. ÍNDICE") cellrange(A4:M60) case(lower) allstring clear
+import excel "$ecuRaw/prices/FebPwtExport1242024.xlsx", sheet("Data") case(lower) firstrow allstring clear
 
 * Rename variables
-foreach var of varlist * {
-    local varname : di `var'[1]
-    rename `var' `varname'
-}
-drop if _n==1 | _n==2
-rename MESES year
+drop variablecode
+rename (regioncode yearcode aggvalue) (region year value)
+
+* Keep Ecuador only (index is based on USA 2017 = 1.0)
+keep if region=="ECU"
+drop region
 
 * Destring all variables
-destring _all, replace
-
-* Take monthly averages
-egen cpi = rowmean(Enero-Diciembre)
-drop Enero-Diciembre
+destring year value, replace
 
 * Keep only 2007-2011
 keep if year>=2007 & year<=2011
 
 * Adjust to have 2007 as base year
 assert year==2007 if _n==1
-local cpi_2007 = cpi[1]
-di "`cpi_2007'"
-replace cpi = cpi/`cpi_2007'*100
+local value_2007 = value[1]
+di "`value_2007'"
+replace value = value/`value_2007'*100
 drop if year==2007
 
 * Export final complete file
