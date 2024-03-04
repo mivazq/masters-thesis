@@ -153,11 +153,11 @@ drop if cost_labour_total==0 // 0 labor not credible and not viable for our esti
 assert tot_FA_calc>0 & revenue_op_total>0 & cost_prod_total>0 & cost_labour_total>0
 
 * Keep only variables of interest
-keep id_sri year sub_date tot_FA_calc revenue_op_total cost_prod_total cost_labour_total
+keep id_sri year sub_date tot_FA_calc revenue_op_total cost_prod_total cost_labour_total cost_interest_total
 
 * Rename variables (remove _calc and _total suffixes)
-rename (tot_FA_calc  revenue_op_total   cost_prod_total cost_labour_total) ///
-       (fixed_assets operative_revenues material_costs  labour_costs)
+rename (tot_FA_calc  revenue_op_total   cost_prod_total cost_labour_total cost_interest_total) ///
+       (fixed_assets operative_revenues material_costs  labour_costs      capital_costs)
 
 * Deal with duplicates (id-year)
 gsort id_sri year sub_date

@@ -168,33 +168,37 @@ by id_sri: replace last_filing  = last_filing[_n-1]  if impute==1
 drop filings_count filings_due
 
 * Check correlations
-corr fixed_assets operative_revenues material_costs labour_costs
+corr fixed_assets operative_revenues material_costs labour_costs capital_costs
 * It seems that material costs correlate extremely highly with revenues whereas
-* labor costs correlate the highest with fixed assets. Thus I will generate ratios
-* material/revenue to fill missing materials and labour/assets to fill missing labour
-* when it's possible. This should be more robust to outliers compared to the other
-* way which I'm using later when this is not possible.
+* labor/capital costs correlate the highest with fixed assets. Thus I will generate
+* ratios material/revenue to fill missing materials and labour/assets to fill 
+* missing labour when it's possible. This should be more robust to outliers compared 
+* to the other way which I'm using later when this is not possible.
 
 * Generate ratios to help imputation and weights
 gen m_y = material_costs/operative_revenues
 gen l_k = labour_costs/fixed_assets
+gen r_k = capital_costs/fixed_assets
 by id_sri: egen tot_y = total(operative_revenues) if !missing(m_y)
 by id_sri: egen tot_k = total(fixed_assets)       if !missing(l_k)
 gen w_m_y = operative_revenues/tot_y
 gen w_l_k = fixed_assets/tot_k
+gen w_r_k = fixed_assets/tot_k
 by id_sri: egen ratio_m_y = total(w_m_y*m_y) // weighted mean
 by id_sri: egen ratio_l_k = total(w_l_k*l_k) // weighted mean
+by id_sri: egen ratio_r_k = total(w_r_k*r_k) // weighted mean
 
 * Fill in material and labour costs using firm-specific ratios
 replace material_costs = operative_revenues * ratio_m_y if missing(material_costs) & impute==1
 replace labour_costs   = fixed_assets       * ratio_l_k if missing(labour_costs)   & impute==1
+replace capital_costs  = fixed_assets       * ratio_r_k if missing(capital_costs)  & impute==1
 
-* Fill in fixed assets and operative revenue using the inverse ratios
+* Fill in fixed assets and operative revenue using the inverse ratios (use labor for FA)
 replace operative_revenues = material_costs / ratio_m_y if missing(operative_revenues) & impute==1
 replace fixed_assets       = labour_costs / ratio_l_k   if missing(fixed_assets)       & impute==1
 
 * Drop ratios 
-drop m_y l_k tot_y tot_k w_m_y w_l_k ratio_m_y ratio_l_k
+drop m_y l_k r_k tot_y tot_k w_m_y w_l_k w_r_k ratio_m_y ratio_l_k ratio_r_k
 
 * For the remaining missings (either completely missing observations or e.g. both
 * materials and revenues missings) I will just linearly fill the holes by taking
@@ -203,6 +207,7 @@ by id_sri: replace fixed_assets       = (fixed_assets[_n-1]       + fixed_assets
 by id_sri: replace operative_revenues = (operative_revenues[_n-1] + operative_revenues[_n+1])/2 if missing(operative_revenues) & impute==1
 by id_sri: replace material_costs     = (material_costs[_n-1]     + material_costs[_n+1])/2     if missing(material_costs)     & impute==1
 by id_sri: replace labour_costs       = (labour_costs[_n-1]       + labour_costs[_n+1])/2       if missing(labour_costs)       & impute==1
+by id_sri: replace capital_costs      = (capital_costs[_n-1]      + capital_costs[_n+1])/2      if missing(capital_costs)      & impute==1
  
 * Repeat the same but using 2-step lag for cases where 2 consecutive years are 
 * missing. I.e. we have 2008 and 2011 but are missing 2009 and 2010. I take the 
@@ -216,12 +221,14 @@ by id_sri: replace material_costs     = material_costs[_n-1]     + (material_cos
 by id_sri: replace material_costs     = material_costs[_n-1]     + (material_costs[_n+1]     - material_costs[_n-2])*(1/3)     if missing(material_costs)     & impute==1 & year==2010
 by id_sri: replace labour_costs       = labour_costs[_n-1]       + (labour_costs[_n+2]       - labour_costs[_n-1])*(1/3)       if missing(labour_costs)       & impute==1 & year==2009
 by id_sri: replace labour_costs       = labour_costs[_n-1]       + (labour_costs[_n+1]       - labour_costs[_n-2])*(1/3)       if missing(labour_costs)       & impute==1 & year==2010
+by id_sri: replace capital_costs      = capital_costs[_n-1]      + (capital_costs[_n+2]      - capital_costs[_n-1])*(1/3)      if missing(capital_costs)      & impute==1 & year==2009
+by id_sri: replace capital_costs      = capital_costs[_n-1]      + (capital_costs[_n+1]      - capital_costs[_n-2])*(1/3)      if missing(capital_costs)      & impute==1 & year==2010
 
 * Round quantities
-foreach var of varlist fixed_assets operative_revenues material_costs labour_costs {
+foreach var of varlist fixed_assets operative_revenues material_costs labour_costs capital_costs {
     replace `var' = round(`var')
 }
-assert !missing(fixed_assets, operative_revenues, material_costs, labour_costs) if impute==1
+assert !missing(fixed_assets, operative_revenues, material_costs, labour_costs, capital_costs) if impute==1
 
 * Save dataset of expansion set
 compress

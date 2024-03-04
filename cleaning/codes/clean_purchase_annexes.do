@@ -241,36 +241,35 @@ foreach file in `files' {
     * If VAT field is missing we impute it to be 12% of tax_base_12
     replace vat = 0.12*tax_base_12 if missing(vat)
     
-* Deal with negative values
-// In theory negative values should not be allowed but the very vast majority
-// of the ones in tax_base_12 have a corresponding negative VAT value of 12%.
-// This seems to indicate that they are not simply mistakes. Since some firms 
-// might file annexes that were automatically registered via electronic bills
-// it is possible that firms returned stuff they had bought and thus appear
-// negative values.
-// Once we aggregate at year level we will think about potential negatives
-count if tax_base_12<0
-count if vat<0
-count if tax_base_12<0 & vat<0
-count if tax_base_0<0
-count if non_subject_VAT<0
+* Deal with negative values by dropping them
+drop if tax_base_12<0 | vat<0 | tax_base_0<0 | non_subject_VAT<0
 
 * Fix incosistencies between tax_base_12 and VAT, which should always be 12%. I
 * trust here the VAT value and instead adjust tax_base_12. Mostly already correct.
 replace tax_base_12 = (0.12^-1)*vat
 
+* There seems to be cases of firms filing duplicates values in both "tax_base_0" 
+* and "non_subject_VAT" columns, whereas other firms use them independently. Let's
+* identify the cases of firms always double reporting and correct them such as 
+* not to double count. Note that "non_subject_VAT" is very rarely used. I use 
+* floor() function because sometimes values might differ by few decimals but it's
+* obviously the same. Rounding might cause problems with .5
+replace non_subject_VAT = 0 if floor(tax_base_0)==floor(non_subject_VAT) & non_subject_VAT!=0
+
 * Generate total value of the transaction as the sum of the three components
-egen transaction_value = rowtotal(tax_base_12 tax_base_0 non_subject_VAT)
+egen double transaction_value = rowtotal(tax_base_12 tax_base_0 non_subject_VAT)
 
 * Collapse at year-buyer-seller level
-gcollapse (sum) transaction_value, by(year id_buyer id_seller)
+drop if transaction_value==0
+gcollapse (sum) transaction_value (count) transaction_volume = register_date, by(year id_buyer id_seller)
 
 * Round to the full dollar
 replace transaction_value = round(transaction_value)
 
 * Drop observations with total yearly purchase value being zero or negative
-drop if transaction_value<=0
+assert transaction_value>=0
 assert !missing(transaction_value)
+drop if transaction_value==0
 assert transaction_value>=1 // due to rounding
 
 
@@ -282,19 +281,19 @@ assert transaction_value>=1 // due to rounding
 compress
 export delimited $pathCle/output/intermediate_transactions.csv, replace
 
-* Export intermediate cost
-preserve
-    gcollapse (sum) cost_transactions = transaction_value, by(year id_buyer)
-    rename id_buyer id_sri
-    export delimited $pathCle/output/intermediate_cost.csv, replace
-restore
-
-* Export intermediate revenue
-preserve
-    gcollapse (sum) revenue_transactions = transaction_value, by(year id_seller)
-    rename id_seller id_sri
-    export delimited $pathCle/output/intermediate_revenue.csv, replace
-restore
+// * Export intermediate cost
+// preserve
+//     gcollapse (sum) cost_transactions = transaction_value, by(year id_buyer)
+//     rename id_buyer id_sri
+//     export delimited $pathCle/output/intermediate_cost.csv, replace
+// restore
+//
+// * Export intermediate revenue
+// preserve
+//     gcollapse (sum) revenue_transactions = transaction_value, by(year id_seller)
+//     rename id_seller id_sri
+//     export delimited $pathCle/output/intermediate_revenue.csv, replace
+// restore
 
 //     * Delete folder of intermediate files and its contents
 //     local files: dir "$pathCle/input/cleaning_intermediate/PA/" files "*.dta"
