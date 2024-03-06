@@ -6,12 +6,13 @@ df_transactions = pd.read_csv(pathCle+"output/intermediate_transactions.csv")
 df_firm_info = pd.read_csv(pathCle+"output/firm_info.csv", 
                            usecols=["id_sri", "soe", "province", "region_geo", "isic_section", "isic_division"])
 df_tax_filings = pd.read_csv(pathCle+"output/tax_filings.csv")
-df_tax_filings_imp_exp = pd.read_csv(pathCle+"output/tax_filings_imputed_expansion.csv")
+# df_tax_filings_imp_exp = pd.read_csv(pathCle+"output/tax_filings_imputed_expansion.csv")
 
 # retrieve IDs of tax filings firms (set used for markup estimation)
 IDs_tax_filings = df_tax_filings['id_sri'].unique()
-IDs_tax_filings_imp_exp = df_tax_filings_imp_exp['id_sri'].unique()
-est_IDs = np.concatenate((IDs_tax_filings, IDs_tax_filings_imp_exp), axis=0)
+# IDs_tax_filings_imp_exp = df_tax_filings_imp_exp['id_sri'].unique()
+# est_IDs = np.concatenate((IDs_tax_filings, IDs_tax_filings_imp_exp), axis=0)
+est_IDs = IDs_tax_filings
 est_IDs.sort()
 
 # create dictionary to contain the node attributes for all four years (2008-2011)
@@ -27,7 +28,7 @@ for year in range(2008, 2012):
     IDs.sort()
     # create pandas dataframe with IDs as column
     node_attr_all_years[year] = pd.DataFrame(IDs, columns=['id_sri'])
-    # add attribute of whether the firm is in the estimation set    
+    # add attribute of whether the firm is in the estimation set
     node_attr_all_years[year]['est'] = np.where(node_attr_all_years[year]['id_sri'].isin(est_IDs), 1, 0)
     # merge other firm info
     node_attr_all_years[year] = pd.merge(node_attr_all_years[year], df_firm_info, on='id_sri', how='left')
@@ -48,8 +49,8 @@ for year in range(2008, 2012):
         u = df_year.iloc[i]['id_seller']
         v = df_year.iloc[i]['id_buyer']
         # create edges between buyer and seller
-        G.add_edge(u, v, weight=df_year.iloc[i]['transaction_value'])
-    # assign graph to right year in dictionary    
+        G.add_edge(u, v, value=df_year.iloc[i]['transaction_value'], volume=df_year.iloc[i]['transaction_volume'])
+    # assign graph to right year in dictionary
     G_all_years[year] = G
 
 # iterate over nodes adding attributes

@@ -19,14 +19,16 @@ df_tax_filings <- fread(file=paste0(pathCle, "output/tax_filings.csv"), na.strin
 df_tax_filings_imp_exp <- fread(file=paste0(pathCle, "output/tax_filings_imputed_expansion.csv"), na.strings="")
 df_firm_info   <- fread(file=paste0(pathCle, "output/firm_info.csv"), na.strings="")
 df_deflators   <- fread(file=paste0(pathCle, "output/deflators.csv"), na.strings="")
-df_cpi_assets  <- fread(file=paste0(pathCle, "output/assets_deflators.csv"), na.strings="")
+df_def_assets  <- fread(file=paste0(pathCle, "output/assets_deflators.csv"), na.strings="")
 
 # Append baseline filings with expansion set thanks to imputation
 df_tax_filings <- rbind(df_tax_filings[, impute := 0], df_tax_filings_imp_exp)
 
 # Merge tax filings panel with firm industry information
 panel <- merge(df_firm_info, df_tax_filings, by="id_sri", all.y=T)
-panel <- panel[isic_section %nin% c("P","Q","R","S","T")]
+
+# Keep only relevant industries
+panel <- panel[isic_section %in% c("A","B","D","F","G")]
 
 # Merge price deflators into panel (try to match on class, if not on group)
 # Due to how the deflators file is constructed even if a specific group would 
@@ -39,20 +41,20 @@ panel <- merge(panel, df_deflators[,.(year,code,def2=deflator)],
 panel[, deflator := ifelse(!is.na(def1), def1, def2)]
 panel[, c("def1","def2") := NULL]
 
-# Merge Consumer Price Indexes to deflate assets
-panel <- merge(panel, df_cpi_assets, by="year", all.x=T)
+# Merge assets deflators
+panel <- merge(panel, df_def_assets[, .(year, capital_deflator = value)], by="year", all.x=T)
 
 # Resort data to original state
 setorder(panel, "id_sri", "year")
 
-# Deflate assets
-panel[, fixed_assets := fixed_assets/cpi*100]
+# Deflate assets and cost of capital using 
+panel[, c("fixed_assets", "capital_costs") := lapply(.SD, function(x) x/panel[["capital_deflator"]]*100), .SDcols = c("fixed_assets", "capital_costs")]
 
 # Deflate other monetary variables
 panel[, c("operative_revenues", "material_costs", "labour_costs") := lapply(.SD, function(x) x/panel[["deflator"]]*100), .SDcols = c("operative_revenues", "material_costs", "labour_costs")]
 
-# Generate variable that sums up material and labour costs := "sales_costs"
-panel[, sales_costs := material_costs + labour_costs]
+# Generate variable that sums up material and labour costs := "variable_costs"
+panel[, variable_costs := material_costs + labour_costs]
 
 # # 2008 distribution of start dates
 # for (y in 2008:2011) {
@@ -140,23 +142,54 @@ panel[, sales_costs := material_costs + labour_costs]
 #///////////////////////////////////////////////////////////////////////////////
 #----                           2 - CHECKS                                  ----
 #///////////////////////////////////////////////////////////////////////////////
-# 
+
 # # Plots
 # plot(panel$material_costs, panel$operative_revenues)
 # plot(panel$labour_costs,   panel$operative_revenues)
-# plot(panel$sales_costs,    panel$operative_revenues)
+# plot(panel$variable_costs, panel$operative_revenues)
 # plot(panel$material_costs, panel$operative_revenues, log="xy")
 # plot(panel$labour_costs,   panel$operative_revenues, log="xy")
-# plot(panel$sales_costs,    panel$operative_revenues, log="xy")
+# plot(panel$variable_costs, panel$operative_revenues, log="xy")
 # 
 # # Correlations
 # cor(panel$material_costs, panel$operative_revenues, use="pairwise")
 # cor(panel$labour_costs,   panel$operative_revenues, use="pairwise")
-# cor(panel$sales_costs,    panel$operative_revenues, use="pairwise")
+# cor(panel$variable_costs, panel$operative_revenues, use="pairwise")
 # 
 # cor(log(panel$material_costs), log(panel$operative_revenues), use="pairwise")
 # cor(log(panel$labour_costs),   log(panel$operative_revenues), use="pairwise")
-# cor(log(panel$sales_costs),    log(panel$operative_revenues), use="pairwise") 
+# cor(log(panel$variable_costs), log(panel$operative_revenues), use="pairwise") 
+
+
+#///////////////////////////////////////////////////////////////////////////////
+#----                 3 - COMPUTE LABOR/MATERIALS/CAPITAL SHARES            ----
+#///////////////////////////////////////////////////////////////////////////////
+
+shares <- dcast(data      = panel,
+                formula   = isic_section ~ .,
+                fun       = sum,
+                na.rm     = T,
+                value.var = c("material_costs", "labour_costs", "variable_costs", "capital_costs", "operative_revenues"))
+shares[, c("material_costs", "labour_costs", "variable_costs", "capital_costs") := 
+           lapply(.SD, function(x) x/shares[["operative_revenues"]]), .SDcols = 
+           c("material_costs", "labour_costs", "variable_costs", "capital_costs")]
+shares[, operative_revenues := NULL]
+setnames(shares, c("material_costs", "labour_costs", "variable_costs", "capital_costs"), c("M_share", "L_share", "V_share", "K_share"))
+shares[, tot_share_v_k := V_share + K_share]
+
+VA_shares <- dcast(data      = panel,
+                   formula   = isic_section ~ .,
+                   fun       = sum,
+                   na.rm     = T,
+                   value.var = c("material_costs", "labour_costs", "capital_costs", "operative_revenues"))
+VA_shares[, VA := operative_revenues - material_costs]
+VA_shares[, c("operative_revenues", "material_costs") := NULL]
+VA_shares[, c("labour_costs", "capital_costs") := 
+              lapply(.SD, function(x) x/VA_shares[["VA"]]), .SDcols = 
+              c("labour_costs", "capital_costs")]
+VA_shares[, c("VA") := NULL]
+setnames(VA_shares, c("labour_costs", "capital_costs"), c("L_share", "K_share"))
+VA_shares[, tot_share_l_k := L_share + K_share]
 
 
 #///////////////////////////////////////////////////////////////////////////////
@@ -195,7 +228,7 @@ dt_est <- panel[, .(id = id_sri,
                 k = log(fixed_assets), 
                 l = log(labour_costs),
                 m = log(material_costs),
-                v = log(sales_costs))]
+                v = log(variable_costs))]
 
 # Create new variables needed for translog production function
 dt_est[, `:=` (v2 = v^2,
