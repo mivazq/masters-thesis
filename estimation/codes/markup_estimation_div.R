@@ -56,109 +56,36 @@ panel[, c("operative_revenues", "material_costs", "labour_costs") := lapply(.SD,
 # Generate variable that sums up material and labour costs := "variable_costs"
 panel[, variable_costs := material_costs + labour_costs]
 
-# # 2008 distribution of start dates
-# for (y in 2008:2011) {
-#     png(file = paste0(pathFig,sysdate,'_dist_stdart_year_',y,'.png'))
-#     hist(as.numeric(substr(panel[entry==1 & year==y]$startdate,6,10))[as.numeric(substr(panel[entry==1 & year==y]$startdate,6,10))>=1961], 
-#          xlim = range(1961,2011), ylim = range(0,2500), breaks=1961:2011, 
-#          xlab = "Start of activity according to firm registry", 
-#          main = paste0(y))
-#     dev.off()
-# }
+# Generate value added
+panel[, value_added := operative_revenues - material_costs]
 
-# panel[, startdate := NULL] # can't be used, differs way too much from first/last filing
+# Exclude too small sectors
+panel <- panel[isic_division %nin% c("A02", "D16", "D23", "D30", "D32", "D35", "D37")]
 
-#///////////////////////////////////////////////////////////////////////////////
-#----                       ... - MEETING 2                                 ----
-#///////////////////////////////////////////////////////////////////////////////
-# 
-# ### ENTRY DATE
-# 
-# # Check entry year under current specification (first filing)
-# cur <- ggplot(panel[entry==1], aes(x=year)) + geom_bar() + theme_bw()
-# ggsave(cur, filename = paste0(pathFig, format(Sys.Date()),"_entry_current.png"))
-# 
-# # Check entry year under alternative specification (firm registry + correction)
-# panel[, alt := ifelse(entry==1, as.integer(substr(startdate,6,10)), NA)] # get firm registry date
-# panel[year<alt, alt := year] # correct in cases where first_filing < registry date (2 cases)
-# alt <- ggplot(panel[entry==1 & alt>=2008], aes(x=alt)) + geom_bar() + theme_bw()
-# ggsave(alt, filename = paste0(pathFig, format(Sys.Date()),"_entry_alternative.png"))
-# alt_excl <- ggplot(panel[entry==1 & alt>=2008 & !(alt<year & alt>=2008)], aes(x=alt)) + geom_bar() + theme_bw()
-# ggsave(alt_excl, filename = paste0(pathFig, format(Sys.Date()),"_entry_alternative_exclusions.png"))
-# 
-# # Alternative 2
-# panel[, alt2 := alt] # new version
-# panel[(alt2<year & alt2>=2008), alt2 := year] # adjust firm registry when first filing is after registry date and registry date >= 2008
-# alt2 <- ggplot(panel[entry==1 & alt2>=2008], aes(x=alt2)) + geom_bar() + theme_bw()
-# ggsave(alt, filename = paste0(pathFig, format(Sys.Date()),"_entry_alternative2.png"))
-# 
-# # Look at entry across entire firm registry
-# fr <- ggplot(df_firm_info[as.numeric(substr(startdate,6,10))>1995], aes(x=substr(startdate,6,10))) + geom_bar() + theme_bw()
-# ggsave(fr, filename = paste0(pathFig, format(Sys.Date()),"_entry_all_firm_registry.png"))
-# 
-# # Convert start date to start year from firm register
-# panel[, c("alt","alt2", "startdate") := NULL] # can't be used, differs way too much from first/last filing
-# rm(cur,alt,alt_excl,alt2,fr,y)
-# 
-# 
-# 
-# 
-# ### LABOUR COST
-# df_wage_bills <- fread(file=paste0(pathCle, "output/wage_bills.csv"), na.strings="")
-# compare_wages <- merge(panel[active==1, .(id_sri,year,labour_costs)], df_wage_bills, by=c("id_sri","year"), all.x = T)
-# compare_wages[, rel_diff := (wages-labour_costs)/labour_costs*100]
-# above = nrow(compare_wages[rel_diff>100])/nrow(compare_wages)*100 # share of observations where difference is more than 100%
-# miss = nrow(compare_wages[is.na(rel_diff)])/nrow(compare_wages)*100 # share of observations where SS data is missing
-# png(file = paste0(pathFig,sysdate,'_compare_wages.png'))
-# hist(compare_wages[rel_diff<=100]$rel_diff, freq=F, xlab="% difference between social security wages compared to tax filings",
-#      main = paste0("(SS_wages - TF_wages)/TF_wages
-#                    [capped at 100%, but ",round(above,2),"% of cases are above 100%]
-#                    [and ",round(miss,2),"% of cases have missing SS data]"))
-# dev.off()
-# 
-# 
-# 
-# 
-# 
-# ### TRANSACTION COSTS
-# panel[, investment := fixed_assets-0.9*shift(fixed_assets), by=id_sri] # assume 10% depr. rate
-# 
-# df_purchases <- fread(file=paste0(pathCle, "output/intermediate_cost.csv"), na.strings="")
-# compare_trans <- merge(panel[active==1, .(id_sri,year,material_costs,investment)], df_purchases, by=c("id_sri","year"), all.x = T)
-# compare_trans[, rel_diff := (cost_transactions-material_costs)/material_costs*100]
-# above = nrow(compare_trans[rel_diff>100])/nrow(compare_trans)*100 # share of observations where difference is more than 100%
-# miss = nrow(compare_trans[is.na(rel_diff)])/nrow(compare_trans)*100 # share of observations where SS data is missing
-# png(file = paste0(pathFig,sysdate,'_compare_trans.png'))
-# hist(compare_trans[rel_diff<=100]$rel_diff, freq=F, xlab="% difference between transaction annex purchases compared material costs",
-#      main = paste0("(TA_purchases - TF_materials)/TF_materials
-#                    [capped at 100%, but ",round(above,2),"% of cases are above 100%]
-#                    [and ",round(miss,2),"% of cases have missing TA data]"))
-# dev.off()
-# 
-# panel[, investment := NULL]
-# 
-# rm(compare_wages, compare_trans, above, miss)
+# Correlations
+cor(panel[isic_section=="G"]$material_costs, panel[isic_section=="G"]$operative_revenues, use="pairwise")
+cor(panel[isic_section=="G"]$labour_costs,   panel[isic_section=="G"]$operative_revenues, use="pairwise")
+cor(panel[isic_section=="G"]$variable_costs, panel[isic_section=="G"]$operative_revenues, use="pairwise")
 
-#///////////////////////////////////////////////////////////////////////////////
-#----                           2 - CHECKS                                  ----
-#///////////////////////////////////////////////////////////////////////////////
+cor(log(panel[isic_section=="G"]$material_costs), log(panel[isic_section=="G"]$operative_revenues), use="pairwise")
+cor(log(panel[isic_section=="G"]$labour_costs),   log(panel[isic_section=="G"]$operative_revenues), use="pairwise")
+cor(log(panel[isic_section=="G"]$variable_costs), log(panel[isic_section=="G"]$operative_revenues), use="pairwise") 
 
-# # Plots
-# plot(panel$material_costs, panel$operative_revenues)
-# plot(panel$labour_costs,   panel$operative_revenues)
-# plot(panel$variable_costs, panel$operative_revenues)
-# plot(panel$material_costs, panel$operative_revenues, log="xy")
-# plot(panel$labour_costs,   panel$operative_revenues, log="xy")
-# plot(panel$variable_costs, panel$operative_revenues, log="xy")
-# 
-# # Correlations
-# cor(panel$material_costs, panel$operative_revenues, use="pairwise")
-# cor(panel$labour_costs,   panel$operative_revenues, use="pairwise")
-# cor(panel$variable_costs, panel$operative_revenues, use="pairwise")
-# 
-# cor(log(panel$material_costs), log(panel$operative_revenues), use="pairwise")
-# cor(log(panel$labour_costs),   log(panel$operative_revenues), use="pairwise")
-# cor(log(panel$variable_costs), log(panel$operative_revenues), use="pairwise") 
+# Exclude outliers
+# panel[, v_ratio := variable_costs/operative_revenues]
+# panel[, v_ratio_99 := p99(v_ratio), by = year]
+# panel[, v_ratio_01 := p01(v_ratio), by = year]
+# panel <- panel[!(v_ratio>v_ratio_99)]
+# panel <- panel[!(v_ratio<v_ratio_01)]
+
+panel[, m_ratio := material_costs/operative_revenues]
+panel[, m_ratio_99 := p99(m_ratio), by = year]
+panel[, m_ratio_01 := p01(m_ratio), by = year]
+panel[, l_ratio := labour_costs/operative_revenues]
+panel[, l_ratio_99 := p99(l_ratio), by = year]
+panel[, l_ratio_01 := p01(l_ratio), by = year]
+panel <- panel[!(m_ratio>m_ratio_99 | l_ratio>l_ratio_99)]
+panel <- panel[!(m_ratio<m_ratio_01 | l_ratio<l_ratio_01)]
 
 
 #///////////////////////////////////////////////////////////////////////////////
@@ -176,20 +103,6 @@ shares[, c("material_costs", "labour_costs", "variable_costs", "capital_costs") 
 shares[, operative_revenues := NULL]
 setnames(shares, c("material_costs", "labour_costs", "variable_costs", "capital_costs"), c("M_share", "L_share", "V_share", "K_share"))
 shares[, tot_share_v_k := V_share + K_share]
-
-VA_shares <- dcast(data      = panel,
-                   formula   = isic_division ~ .,
-                   fun       = sum,
-                   na.rm     = T,
-                   value.var = c("material_costs", "labour_costs", "capital_costs", "operative_revenues"))
-VA_shares[, VA := operative_revenues - material_costs]
-VA_shares[, c("operative_revenues", "material_costs") := NULL]
-VA_shares[, c("labour_costs", "capital_costs") := 
-              lapply(.SD, function(x) x/VA_shares[["VA"]]), .SDcols = 
-              c("labour_costs", "capital_costs")]
-VA_shares[, c("VA") := NULL]
-setnames(VA_shares, c("labour_costs", "capital_costs"), c("L_share", "K_share"))
-VA_shares[, tot_share_l_k := L_share + K_share]
 
 
 #///////////////////////////////////////////////////////////////////////////////
@@ -243,11 +156,6 @@ dt_init <- data.table(sec = rep(sectors,2),
 
 # Iterate over industries 
 for (ind in sort(unique(dt_est$sec))) {
-    
-    if (ind %in% c("C10", "C12", "D16", "D30")) {
-        message("ESTIMATION FOR DIVISION ", ind, " SKIPPED, UNSUFFICIENT OBSERVATIONS\n")
-        next
-    }
     
     # Logical vector for sector selection and first stage selection
     sec_sel <- dt_est$sec==ind
@@ -305,16 +213,22 @@ for (ind in sort(unique(dt_est$sec))) {
         olscd_model <- feols(y ~ v + k | year, 
                              data = dt_est, subset = use_2nd & sec_sel, panel.id=c("id","year"))
         dt_est[sec_sel, olscd := list(olscd_model$coefficients)]
-        dt_init[sec==ind & pf=="CD", names(as.list(olscd_model$coefficients)) := as.list(olscd_model$coefficients)]
         
         # OLS estimates on Translog production function
         olstl_model <- feols(y ~ v + k + v2 + k2 + vk | year, 
                              data = dt_est, subset = use_2nd & sec_sel, panel.id=c("id","year"))
         dt_est[sec_sel, olstl := list(olstl_model$coefficients)]
+        
+        # Construct initial parameters for GMM as combination of GNR (50%) and OLS (50%)
+        dt_init[sec==ind & pf=="CD", names(as.list(olscd_model$coefficients)) := as.list(olscd_model$coefficients)]
+        # init_CD_v = 0.91*0.5 + dt_init[sec==ind & pf=="CD"]$v*0.5 # 0.91 is average in GNR between Colombia and Chile across all manufacturing
+        # init_CD_k = 0.15*0.5 + dt_init[sec==ind & pf=="CD"]$k*0.5 # 0.15 is average in GNR between Colombia and Chile across all manufacturing
+        init_CD_v = 0.91*0 + dt_init[sec==ind & pf=="CD"]$v*1 # 0.91 is average in GNR between Colombia and Chile across all manufacturing
+        init_CD_k = 0.15*0 + dt_init[sec==ind & pf=="CD"]$k*1 # 0.15 is average in GNR between Colombia and Chile across all manufacturing
         dt_init[sec==ind & pf=="TL", names(as.list(olstl_model$coefficients)) := as.list(olstl_model$coefficients)]
         
         # ACF estimates using DLW method on Cobb Douglas production function
-        dt_est[sec_sel, dlwcd := list(DLW_CD(init_par = c(1, olscd_model$coefficients["v"], olscd_model$coefficients["k"])))]
+        dt_est[sec_sel, dlwcd := list(DLW_CD(init_par = c(1, init_CD_v, init_CD_k)))]
         # dt_est[sec_sel, dlwcd := list(DLW_CD(init_par = c(1, shares[isic_division==ind]$V_share, shares[isic_division==ind]$K_share)))]
         
         # ACF estimates using DLW method on Translog production function
@@ -325,33 +239,28 @@ for (ind in sort(unique(dt_est$sec))) {
 
 rm(fs_model, olscd_model, olstl_model, sec_sel, ind)
 
-# Set missings
-for (ind in c("C10", "C12", "D16", "D30")) {
-    dt_est[sec==ind, c("olscd", "dlwcd", "olstl", "dlwtl") := NA]
-}
-
 #///////////////////////////////////////////////////////////////////////////////
 #----               4 - COMPUTE MARK-UPS AND PRODUCTIVITIES                 ----
 #///////////////////////////////////////////////////////////////////////////////
 
 # Extract individual betas from coefficient lists
-dt_est[sec %nin% c("C10", "C12", "D16", "D30"), beta_v_olscd := sapply(olscd, function(x) x[["v"]])]
-dt_est[sec %nin% c("C10", "C12", "D16", "D30"), beta_k_olscd := sapply(olscd, function(x) x[["k"]])]
+dt_est[, beta_v_olscd := sapply(olscd, function(x) x[["v"]])]
+dt_est[, beta_k_olscd := sapply(olscd, function(x) x[["k"]])]
 dt_est[, olscd := NULL]
-dt_est[sec %nin% c("C10", "C12", "D16", "D30"), beta_v_dlwcd := sapply(dlwcd, function(x) x[["v"]])]
-dt_est[sec %nin% c("C10", "C12", "D16", "D30"), beta_k_dlwcd := sapply(dlwcd, function(x) x[["k"]])]
+dt_est[, beta_v_dlwcd := sapply(dlwcd, function(x) x[["v"]])]
+dt_est[, beta_k_dlwcd := sapply(dlwcd, function(x) x[["k"]])]
 dt_est[, dlwcd := NULL]
-dt_est[sec %nin% c("C10", "C12", "D16", "D30"), beta_v1_olstl := sapply(olstl, function(x) x[["v"]])]
-dt_est[sec %nin% c("C10", "C12", "D16", "D30"), beta_k1_olstl := sapply(olstl, function(x) x[["k"]])]
-dt_est[sec %nin% c("C10", "C12", "D16", "D30"), beta_v2_olstl := sapply(olstl, function(x) x[["v2"]])]
-dt_est[sec %nin% c("C10", "C12", "D16", "D30"), beta_k2_olstl := sapply(olstl, function(x) x[["k2"]])]
-dt_est[sec %nin% c("C10", "C12", "D16", "D30"), beta_vk_olstl := sapply(olstl, function(x) x[["vk"]])]
+dt_est[, beta_v1_olstl := sapply(olstl, function(x) x[["v"]])]
+dt_est[, beta_k1_olstl := sapply(olstl, function(x) x[["k"]])]
+dt_est[, beta_v2_olstl := sapply(olstl, function(x) x[["v2"]])]
+dt_est[, beta_k2_olstl := sapply(olstl, function(x) x[["k2"]])]
+dt_est[, beta_vk_olstl := sapply(olstl, function(x) x[["vk"]])]
 dt_est[, olstl := NULL]
-dt_est[sec %nin% c("C10", "C12", "D16", "D30"), beta_v1_dlwtl := sapply(dlwtl, function(x) x[["v"]])]
-dt_est[sec %nin% c("C10", "C12", "D16", "D30"), beta_k1_dlwtl := sapply(dlwtl, function(x) x[["k"]])]
-dt_est[sec %nin% c("C10", "C12", "D16", "D30"), beta_v2_dlwtl := sapply(dlwtl, function(x) x[["v2"]])]
-dt_est[sec %nin% c("C10", "C12", "D16", "D30"), beta_k2_dlwtl := sapply(dlwtl, function(x) x[["k2"]])]
-dt_est[sec %nin% c("C10", "C12", "D16", "D30"), beta_vk_dlwtl := sapply(dlwtl, function(x) x[["vk"]])]
+dt_est[, beta_v1_dlwtl := sapply(dlwtl, function(x) x[["v"]])]
+dt_est[, beta_k1_dlwtl := sapply(dlwtl, function(x) x[["k"]])]
+dt_est[, beta_v2_dlwtl := sapply(dlwtl, function(x) x[["v2"]])]
+dt_est[, beta_k2_dlwtl := sapply(dlwtl, function(x) x[["k2"]])]
+dt_est[, beta_vk_dlwtl := sapply(dlwtl, function(x) x[["vk"]])]
 dt_est[, dlwtl := NULL]
 
 # Compute log TFP
@@ -373,6 +282,20 @@ dt_est[, mu_dlwtl := beta_v_dlwtl / alpha_v]
 #----                           5 - OUTPUT                                  ----
 #///////////////////////////////////////////////////////////////////////////////
 
+# Table with number of observations/firms per sector available in whole panel, used
+# for first stage and second stage. First stage = simply active observations.
+df_sections <- fread(paste0(pathCle, "output/isic_codes_division.csv"))
+n_table <- df_sections[substr(isic_division,1,1) %in% c("A","B","D","F","G"), .(desc=isic_division_desc, sec=isic_division)]
+n_table <- n_table[sec %nin% c("A02", "D16", "D23", "D30", "D32", "D35", "D37")]
+n_table[, full_panel_obs  := table(factor(dt_est$sec, levels = n_table$sec))]
+n_table[, full_panel_ids  := table(factor(unique(dt_est[,.(id,sec)])$sec, levels = n_table$sec))]
+n_table[, `1st_stage_obs` := table(factor(dt_est[use_1st]$sec, levels = n_table$sec))]
+n_table[, `1st_stage_ids` := table(factor(unique(dt_est[use_1st,.(id,sec)])$sec, levels = n_table$sec))]
+n_table[, `2nd_stage_obs` := table(factor(dt_est[use_2nd]$sec, levels = n_table$sec))]
+n_table[, `2nd_stage_ids` := table(factor(unique(dt_est[use_2nd,.(id,sec)])$sec, levels = n_table$sec))]
+write_xlsx(n_table, paste0(pathEst, "output/sample_div.xlsx"))
+
+
 # Table with elasticities
 res <- unique(dt_est[,.(sec, beta_v_dlwcd, beta_k_dlwcd)])
 setorder(res, sec)
@@ -384,30 +307,15 @@ elast_cd <- data.table(industry  = shares$isic_division,
                        # initial_k = shares$K_share,
                        initial_v = dt_init[pf=="CD"]$v,
                        initial_k = dt_init[pf=="CD"]$k,
+                       # initial_v = 0.91*0.5 + dt_init[pf=="CD"]$v*0.5,
+                       # initial_k = 0.15*0.5 + dt_init[pf=="CD"]$k*0.5,
                        final_v   = res$beta_v_dlwcd,
                        final_k   = res$beta_k_dlwcd)
+elast_cd <- elast_cd[industry %nin% c("A02", "D16", "D23", "D30", "D32", "D35", "D37")]
+elast_cd[, n := n_table$`2nd_stage_ids`]
+write_xlsx(elast_cd, paste0(pathEst, "output/elasticities.xlsx"))
 
 
-# Table with number of observations/firms per sector available in whole panel, used
-# for first stage and second stage. First stage = simply active observations.
-df_sections <- fread(paste0(pathCle, "output/isic_codes_division.csv"))
-n_table <- df_sections[substr(isic_division,1,1) %in% c("A","B","D","F","G"), .(desc=isic_division_desc, sec=isic_division)]
-n_table[, full_panel_obs  := table(factor(dt_est$sec, levels = n_table$sec))]
-n_table[, full_panel_ids  := table(factor(unique(dt_est[,.(id,sec)])$sec, levels = n_table$sec))]
-n_table[, `1st_stage_obs` := table(factor(dt_est[use_1st]$sec, levels = n_table$sec))]
-n_table[, `1st_stage_ids` := table(factor(unique(dt_est[use_1st,.(id,sec)])$sec, levels = n_table$sec))]
-n_table[, `2nd_stage_obs` := table(factor(dt_est[use_2nd]$sec, levels = n_table$sec))]
-n_table[, `2nd_stage_ids` := table(factor(unique(dt_est[use_2nd,.(id,sec)])$sec, levels = n_table$sec))]
-write_xlsx(n_table, paste0(pathWD, "meeting prep/meeting 2/sample_div.xlsx"))
-
-
-
-# Custom percentile functions
-p10   <- function (x,na.rm=T) quantile(x, prob=c(0.10),na.rm=na.rm)
-p25   <- function (x,na.rm=T) quantile(x, prob=c(0.25),na.rm=na.rm)
-p50   <- function (x,na.rm=T) quantile(x, prob=c(0.50),na.rm=na.rm)
-p75   <- function (x,na.rm=T) quantile(x, prob=c(0.75),na.rm=na.rm)
-p90   <- function (x,na.rm=T) quantile(x, prob=c(0.90),na.rm=na.rm)
 
 for (pf in c("CD","TL")) {
     ### OLS
@@ -432,8 +340,8 @@ for (pf in c("CD","TL")) {
     dist_table <- rbind(dist_table_ols, dist_table_dlw)
     setorder(dist_table, "sec", "est")
     dist_table <- dist_table[, .(sec, est, mean, sd, min, p10, p25, p50, p75, p90, max)]
-    dist_table[sec %in% c("C10", "C12", "D16", "D30"), c("mean", "sd", "min", "p10", "p25", "p50", "p75", "p90", "max") := NA]
-    write_xlsx(dist_table, paste0(pathWD, "meeting prep/meeting 2/",pf,"_markups_div.xlsx"))
+    dist_table <- dist_table[sec %nin% c("A02", "D16", "D23", "D30", "D32", "D35", "D37")]
+    write_xlsx(dist_table, paste0(pathEst, "output/",pf,"_markups_div.xlsx"))
 }
 
 
@@ -476,7 +384,7 @@ ggplot(agg_mu, aes(x = year, y = value, color = est, linetype = pf)) +
     labs(x = "Year", y = "Aggregate μ", color = "Estimation Method", linetype = "Production Function") +
     scale_linetype_manual(values = c("solid", "dashed")) +
     theme_bw()
-
+ggsave(paste0(pathFig, sysdate, "_aggregate_markup.pdf"))
 
 #///////////////////////////////////////////////////////////////////////////////
 
