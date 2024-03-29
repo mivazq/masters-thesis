@@ -9,7 +9,9 @@
 *.dta
 *.csv
 *.xls
+*.xls#
 *.xlsx
+*.xlsx#
 *.gexf
 
 # Output files
