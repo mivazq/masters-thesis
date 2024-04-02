@@ -187,6 +187,42 @@ gsort id_sri year sub_date
     * Ensure that finally we have unique entries
     isid id_sri year
 
+* Drop outliers (top and bottom 2.5%) in terms of materials and labour shares, year by year
+gen m_share = material_costs/operative_revenues
+gen l_share = labour_costs/operative_revenues
+local m_p025_avg = 0
+local m_p975_avg = 0
+local l_p025_avg = 0
+local l_p975_avg = 0
+forval yy=2008/2011{
+    * Retrieve and store 1st and 99th percentiles
+    centile m_share if year==`yy', c(2.5)
+    local m_p025 = `r(c_1)'
+    local m_p025_avg = `m_p025_avg' + `m_p025'
+    centile m_share if year==`yy', c(97.5)
+    local m_p975 = `r(c_1)'
+    local m_p975_avg = `m_p975_avg' + `m_p975'
+    centile l_share if year==`yy', c(2.5)
+    local l_p025 = `r(c_1)'
+    local l_p025_avg = `l_p025_avg' + `l_p025'
+    centile l_share if year==`yy', c(97.5)
+    local l_p975 = `r(c_1)'
+    local l_p975_avg = `l_p975_avg' + `l_p975'
+   
+    * Drop observations below/Above 2.5th/97.5th percentile in either M/L shares
+    drop if year==`yy' & (m_share<`m_p025' | m_share>`m_p975' | l_share<`l_p025' | l_share>`l_p975')
+}
+
+* Display average cutoffs
+di as result "The average bottom cutoff for materials share is: " round(`m_p025_avg'/4*100,0.1)
+di as result "The average top    cutoff for materials share is: " round(`m_p975_avg'/4*100,0.1)
+di as result "The average bottom cutoff for labour    share is: " round(`l_p025_avg'/4*100,0.1)
+di as result "The average top    cutoff for labour    share is: " round(`l_p975_avg'/4*100,0.1)
+
+* Display final info on data
+distinct id_sri
+di as result "The number of unique firms is " r(ndistinct) ", for a total of " r(N) " observations"
+
 * Make panel (all firms all 4 years)
 fillin id_sri year
 
@@ -210,28 +246,27 @@ gen exit   = (year==last_filing)
 gen active = !(_fillin)
 drop _fillin
 
-* Generate is_exporter dummy
-// gen is_exporter = (revenue_op_exp > 0) if !missing(revenue_op_exp)
-
 * Order
-order id_sri year *_filing entry exit active *_assets *_revenues *_costs
+// order id_sri year *_filing entry exit active *_assets *_revenues *_costs
+order id_sri year *_assets *_revenues *_costs
 
 * Format variables
-format id_sri year *_filing entry exit active %10.0g
+// format id_sri year *_filing entry exit active %10.0g
+format id_sri year %10.0g
 format *_assets *_revenues *_costs %20.0g
 
-* Drop all firms which have missing filings. I deem their data unreliable for now.
-* Alternatively, I could take averages to fill in
-{
-    * Store observations with this problem aside and perform imputation on a 
-    * separate file
-    preserve
-        keep if filings_due!=filings_count
-        save "$pathCle/input/cleaning_intermediate/F10X/firms_to_impute.dta", replace
-    restore
-}
-drop if filings_due!=filings_count
-drop filings_count filings_due 
+// * Drop all firms which have missing filings. I deem their data unreliable for now.
+// * Alternatively, I could take averages to fill in
+// {
+//     * Store observations with this problem aside and perform imputation on a 
+//     * separate file
+//     preserve
+//         keep if filings_due!=filings_count
+//         save "$pathCle/input/cleaning_intermediate/F10X/firms_to_impute.dta", replace
+//     restore
+// }
+// drop if filings_due!=filings_count
+// drop filings_count filings_due
 
 * Save
 compress

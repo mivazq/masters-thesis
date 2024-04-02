@@ -9,6 +9,7 @@
 
 # List needed packages
 packages_needed <- c('writexl',                                                 # To export to Excel
+                     'readxl',                                                  # To read from Excel
                      'haven',                                                   # To import files from other software (Stata, SPSS, ...)
                      'data.table',                                              # Improved syntax for data manipulation
                      'gdata',   											    # Various R programming tools for data manipulation
