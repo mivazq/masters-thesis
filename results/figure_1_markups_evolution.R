@@ -89,32 +89,3 @@ for (i_pf in c("cd","tl")) {
     ggsave(paste0(pathFig,sysdate,"_",toupper(i_pf),"_aggregate_markup.pdf"), width = 15, height = 10, device=cairo_pdf)
 }
 
-
-
-# 
-# for (i_input in c("m","l","v")) {
-#     for (i_pf in c("cd","tl")) {
-#         if (i_input=="m") {
-#             ggplot(agg_mu[input==i_input & pf==i_pf], aes(x = year, y = value, color = ind_group)) +
-#                 geom_line() +
-#                 geom_point() +
-#                 labs(x = "Year", y = "Aggregate Markup", color = "Industry group") +
-#                 theme_bw() + 
-#                 theme(legend.position = "bottom", text = element_text(family = "Palatino"))
-#             ggsave(paste0(pathFig,sysdate,"_",toupper(i_pf),"_aggregate_markup_",toupper(i_input),".pdf"))
-#         }
-#         else if (i_input=="l") {
-#             
-#         }
-#         else {
-#             ggplot(agg_mu[input==i_input & pf==i_pf], aes(x = year, y = value, color = ind_group)) +
-#                 geom_line() +
-#                 geom_point() +
-#                 labs(x = "Year", y = "", color = "Industry group") +
-#                 theme_bw() + 
-#                 theme(legend.position = "bottom", text = element_text(family = "Palatino"))
-#             ggsave(paste0(pathFig,sysdate,"_",toupper(i_pf),"_aggregate_markup_",toupper(i_input),".pdf"))
-#         }
-#     }
-# }
-# rm(i_input, i_pf)
