@@ -17,7 +17,7 @@ source('~/data/transactions_ecuador/3_mivazq/Masters_Thesis/setup.R')
 # Load data and merge
 load(file=paste0(pathEst, "output/firm_markups_V.Rdata"))
 load(file=paste0(pathEst, "output/firm_markups_ML.Rdata"))
-markups <- merge(markups_ML, markups_V, by=c("id","year", "ind"))
+markups <- merge(markups_ML, markups_V, by=c("id","year","ind"))
 rm(markups_ML, markups_V)
 
 # Reshape dataset
