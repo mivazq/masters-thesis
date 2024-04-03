@@ -1,8 +1,8 @@
 #///////////////////////////////////////////////////////////////////////////////
-# File name:		table_2_summary_markups.R
+# File name:		table_3_summary_markups.R
 # Author:			Miguel Vázquez Vázquez
 # Creation date:    31 March 2024
-# Description:      This file produces table 2 (summary statistics on markups)
+# Description:      This file produces table with summary statistics on markups
 #
 # Input:            
 #                   -
@@ -36,7 +36,7 @@ share_AF <- nrow(markups_AF[!is.na(mu)])/nrow(markups[!is.na(mu)])
 share_G  <- nrow(markups_G[!is.na(mu)]) /nrow(markups[!is.na(mu)])
 share_HQ <- nrow(markups_HQ[!is.na(mu)])/nrow(markups[!is.na(mu)])
 
-sink(paste0(pathTab,sysdate,"_table_2_estimates_markups.tex"))
+sink(paste0(pathTab,sysdate,"_table_3_estimates_markups.tex"))
 cat("\\begin{table}[!htbp]\\centering \n")
 cat("\\caption{\\label{tab:EstimatedMarkups} Estimated Markups} \n")
 # cat("\\begin{adjustbox}{width=\\columnwidth,center} \n")
