@@ -50,13 +50,15 @@ forvalues l = 1/6 {
 }
 
 * Fill in start_date in the few cases missings, assume 1st January 2007 (don't "invent" new entries)
-replace startdate = date("01/01/2007", "DMY") if missing(startdate)
- /// 111 cases
+replace startdate = date("01/01/2007", "DMY") if missing(startdate) /// 111 cases
 
 * Drop useless industry codes
 drop indcode2 // Simply doesn't exist, doesn't have any meaning 
-drop indcode6 // Only Ecuador specific (CIIU), doesn't exist in ISIC Rev 3.1
+drop indcode6 // Only Ecuador specific, doesn't exist in ISIC Rev 3.1
 rename (indcode1 indcode3 indcode4 indcode5) (isic_section isic_division isic_group isic_class)
+
+* Drop observations without industry or with Ecuador-specific industry 
+drop if inlist(isic_section, "", "R", "S", "T")
 
 * Indicator of public firms
 gen byte soe = (type2 == 22)

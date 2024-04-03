@@ -44,12 +44,9 @@ df_firm_info   <- fread(file=paste0(pathCle, "output/firm_info.csv"), na.strings
 df_deflators   <- fread(file=paste0(pathCle, "output/deflators.csv"), na.strings="")
 df_def_assets  <- fread(file=paste0(pathCle, "output/assets_deflators.csv"), na.strings="")
 df_industries  <- fread(file=paste0(pathCle, "output/isic_codes_division.csv"), na.strings="")
-df_industries  <- df_industries[isic_division %nin% c("R20", "S25", "T03")]
 
-# Merge tax filings panel with firm industry information immediately excluding
-# Ecuador's special sectors (very few observations anyway) and missings
-panel <- merge(df_tax_filings, df_firm_info, by="id_sri", all.x=T)
-panel <- panel[!is.na(isic_division) & isic_division %nin% c("R20", "S25", "T03")]
+# Merge tax filings panel with firm industry information
+panel <- merge(df_tax_filings, df_firm_info, by="id_sri")
 
 # Merge price deflators into panel (try to match on class, if not on group)
 # Due to how the deflators file is constructed even if a specific group would 
@@ -95,8 +92,8 @@ table_sample_nobs[, ids_2nd_stage := as.vector(table(factor(unique(panel[use_2nd
 setorder(table_sample_nobs, "ind")
 # write_xlsx(table_sample_nobs, paste0(pathEst, "output/sample_by_industry_pre_exclusion.xlsx")) # SAME AS FOR M,L
 
-# Exclude too small industries (<50 observations for 2nd stage) and output new table
-exclusions <- table_sample_nobs[obs_2nd_stage<50]$ind
+# Exclude too small industries (<100 observations for 1st stage) and output new table
+exclusions <- table_sample_nobs[obs_1st_stage<100]$ind
 table_sample_nobs <- table_sample_nobs[ind %nin% exclusions]
 # write_xlsx(table_sample_nobs, paste0(pathEst, "output/sample_by_industry_post_exclusion.xlsx")) # SAME AS FOR M,L
 

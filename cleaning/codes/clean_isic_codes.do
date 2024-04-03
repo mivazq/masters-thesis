@@ -55,42 +55,13 @@ foreach var of varlist isic_division isic_group isic_class {
     replace `var' = isic_section+`var'
 }
 
-* Add three Ecuador (CIIU) special categories that we find in the data
-insobs 1, after(_N)
-replace isic_section  = "R"     if _n==_N
-replace isic_division = "R20"   if _n==_N
-replace isic_group    = "R200"  if _n==_N
-replace isic_class    = "R2000" if _n==_N
-replace isic_section_desc  = "Private sector salaried work" if _n==_N
-replace isic_division_desc = "Private sector salaried work" if _n==_N
-replace isic_group_desc    = "Private sector salaried work" if _n==_N
-replace isic_class_desc    = "Private sector salaried work" if _n==_N
-insobs 1, after(_N)
-replace isic_section  = "S"     if _n==_N
-replace isic_division = "S25"   if _n==_N
-replace isic_group    = "S250"  if _n==_N
-replace isic_class    = "S2500" if _n==_N
-replace isic_section_desc  = "Public sector salaried work" if _n==_N
-replace isic_division_desc = "Public sector salaried work" if _n==_N
-replace isic_group_desc    = "Public sector salaried work" if _n==_N
-replace isic_class_desc    = "Public sector salaried work" if _n==_N
-insobs 1, after(_N)
-replace isic_section  = "T"     if _n==_N
-replace isic_division = "T03"   if _n==_N
-replace isic_group    = "T030"  if _n==_N
-replace isic_class    = "T0300" if _n==_N
-replace isic_section_desc  = "Without economic activity - CIIU" if _n==_N
-replace isic_division_desc = "Without economic activity - CIIU" if _n==_N
-replace isic_group_desc    = "Without economic activity - CIIU" if _n==_N
-replace isic_class_desc    = "Without economic activity - CIIU" if _n==_N
-
 * Create and save datasets to merge descriptions at different levels
     * Section level
     preserve
         keep isic_section isic_section_desc
         order(isic_section), first
         gduplicates drop
-        assert _N==17+3 // There are 17 Sections in ISIC Rev.3.1 (+ 3 Special Ecuador)
+        assert _N==17 // There are 17 Sections in ISIC Rev.3.1
         export delimited $pathCle/output/isic_codes_section.csv, replace
     restore
     
@@ -99,7 +70,7 @@ replace isic_class_desc    = "Without economic activity - CIIU" if _n==_N
         keep isic_division isic_section_desc isic_division_desc
         order(isic_division), first
         gduplicates drop
-        assert _N==62+3 // There are 62 Divisions in ISIC Rev.3.1 (+ 3 Special Ecuador)
+        assert _N==62 // There are 62 Divisions in ISIC Rev.3.1
         export delimited $pathCle/output/isic_codes_division.csv, replace
     restore
     
@@ -108,7 +79,7 @@ replace isic_class_desc    = "Without economic activity - CIIU" if _n==_N
         keep isic_group isic_section_desc isic_division_desc isic_group_desc
         order(isic_group), first
         gduplicates drop
-        assert _N==161+3 // There are 161 Groups in ISIC Rev.3.1 (+ 3 Special Ecuador)
+        assert _N==161 // There are 161 Groups in ISIC Rev.3.1
         export delimited $pathCle/output/isic_codes_group.csv, replace
     restore
     
@@ -117,6 +88,6 @@ replace isic_class_desc    = "Without economic activity - CIIU" if _n==_N
         keep isic_class isic_section_desc isic_division_desc isic_group_desc isic_class_desc
         order(isic_class), first
         gduplicates drop
-        assert _N==298+3 // There are 298 Classes in ISIC Rev.3.1 (+ 3 Special Ecuador)
+        assert _N==298 // There are 298 Classes in ISIC Rev.3.1
         export delimited $pathCle/output/isic_codes_class.csv, replace
     restore

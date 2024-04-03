@@ -37,36 +37,28 @@ sink(filename)
 cat("\\begin{table}[!htbp]\\centering \n")
 cat("\\caption{\\label{tab:IndustryDistribution} Industry Distribution of Markup Estimation Sample} \n")
 cat("\\begin{adjustbox}{width=\\columnwidth,center} \n")
-cat("\\begin{tabular}{lp{1\\textwidth}rrrr}")
+cat("\\begin{tabular}{lp{1\\textwidth}rrcrr}")
 cat("\\toprule \n")
-cat("\\multicolumn{1}{l}{\\multirow{3}{*}{Code}} & \\multicolumn{1}{l}{\\multirow{3}{*}{Industry description}} & \\multicolumn{2}{c}{1st stage} & \\multicolumn{2}{c}{2nd stage} \\\\ \n")
-cat("\\addlinespace \\cline{3-4} \\cline{5-6} \\addlinespace \n")
-cat("& & \\multicolumn{1}{c}{Observations} & \\multicolumn{1}{c}{Unique firms} & \\multicolumn{1}{c}{Observations} & \\multicolumn{1}{c}{Unique firms} \\\\ \n")
+cat("\\multicolumn{1}{l}{\\multirow{3}{*}{Code}} & \\multicolumn{1}{l}{\\multirow{3}{*}{Industry description}} & \\multicolumn{2}{c}{1st stage} & & \\multicolumn{2}{c}{2nd stage} \\\\ \n")
+cat("\\addlinespace \\cline{3-4} \\cline{6-7} \\addlinespace \n")
+cat("& & \\multicolumn{1}{c}{Observations} & \\multicolumn{1}{c}{Unique firms} & & \\multicolumn{1}{c}{Observations} & \\multicolumn{1}{c}{Unique firms} \\\\ \n")
 cat("\\addlinespace \\hline \\addlinespace \n")
 for (industry in sort(df_table$ind)){
-    if (df_table[ind==industry]$obs_2nd_stage>=50) {
+    if (df_table[ind==industry]$obs_1st_stage>=100) {
         cat(df_table[ind==industry]$ind,           " & ", df_table[ind==industry]$desc, " & ",
-            fp(df_table[ind==industry]$obs_1st_stage), " & ", fp(df_table[ind==industry]$ids_1st_stage), " & ",
+            fp(df_table[ind==industry]$obs_1st_stage), " & ", fp(df_table[ind==industry]$ids_1st_stage), " & & ",
             fp(df_table[ind==industry]$obs_2nd_stage), " & ", fp(df_table[ind==industry]$ids_2nd_stage), " \\\\  \n")
     }
     else {
         cat(emph(df_table[ind==industry]$ind),           " & ", emph(df_table[ind==industry]$desc), " & ",
-            emph(fp(df_table[ind==industry]$obs_1st_stage)), " & ", emph(fp(df_table[ind==industry]$ids_1st_stage)), " & ",
+            emph(fp(df_table[ind==industry]$obs_1st_stage)), " & ", emph(fp(df_table[ind==industry]$ids_1st_stage)), " & & ",
             emph(fp(df_table[ind==industry]$obs_2nd_stage)), " & ", emph(fp(df_table[ind==industry]$ids_2nd_stage)), " \\\\  \n")
     }
 }
-# cat("\\addlinespace \\hline \\addlinespace \n")
-# for (industry in sort(df_table$ind)){
-#     if (df_table[ind==industry]$obs_2nd_stage< 50) {
-#         cat(df_table[ind==industry]$ind,           " & ", df_table[ind==industry]$desc, " & ",
-#             df_table[ind==industry]$obs_1st_stage, " & ", df_table[ind==industry]$ids_1st_stage, " & ",
-#             df_table[ind==industry]$obs_2nd_stage, " & ", df_table[ind==industry]$ids_2nd_stage, " \\\\  \n")
-#     }
-# }
 cat("\\bottomrule \n")
 cat("\\end{tabular} \n")
 cat("\\end{adjustbox} \n")
-cat("\\justify \\footnotesize \\emph{Notes:} Industries are defined according to ISIC Revision 3.1 divisions (2-digits level, where the prefix letter indicates the corresponding ISIC Revision 3.1 section). For the 1\\ts{st} stage I consider all valid tax filings as described in Section \\ref{sec:data}. For the 2\\ts{nd} stage all valid observations are considered for which a valid observation is also available in the previous year. Finally, for the markup estimation procedure I exclude all industries (formatted in \\textcolor{red}{\\emph{red cursive}}) where the number of observations available for the 2\\ts{nd} stage is below 50.\n")
+cat("\\justify \\footnotesize \\emph{Notes:} Industries are defined according to ISIC Revision 3.1 divisions (2-digits level, where the prefix letter indicates the corresponding ISIC Revision 3.1 section). For the 1\\ts{st} stage I consider all valid tax filings as described in Section \\ref{sec:data}. For the 2\\ts{nd} stage all valid observations are considered for which a valid observation is also available in the previous year. Finally, for the markup estimation procedure I exclude all industries (formatted in \\textcolor{red}{\\emph{red cursive}}) where the number of observations available for the 1\\ts{st} stage is below 100.\n")
 cat("\\end{table} \n")
 # cat("\\end{document} \n")
 sink()
