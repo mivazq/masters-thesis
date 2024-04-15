@@ -35,9 +35,9 @@ df_transactions[, ti_ij  := wsi_ij*bsi_kj]
 
 # Take averages by seller [I]
 df_transactions[, wsi_i  := mean(wsi_ij), by = c("year", "id_seller")]
-df_transactions[, wsi_iw := sum(wsi_ij),  by = c("year", "id_seller")] # weighted sum
+df_transactions[, wsi_iw := weighted.mean(wsi_ij, w = transaction_value),  by = c("year", "id_seller")] # weighted mean
 df_transactions[, ti_i   := mean(ti_ij),  by = c("year", "id_seller")]
-df_transactions[, ti_iw  := sum(ti_i),    by = c("year", "id_seller")] # weighted sum
+df_transactions[, ti_iw  := weighted.mean(ti_ij, w = transaction_value),   by = c("year", "id_seller")] # weighted mean
 
 # (Corrected) Transaction Volume
 df_transactions[, tv_i := sum(transaction_volume), by = c("year", "id_seller")]
@@ -49,12 +49,13 @@ df_transactions[, ctv_i := tv_i/tv_k]
 reciprocity <- df_transactions[, .(year, id_seller, id_buyer, transaction_value)]
 reciprocity_reversed <- reciprocity[, .(year, id_seller=id_buyer, id_buyer=id_seller, transaction_value)]
 reciprocity <- merge(reciprocity, reciprocity_reversed, by=c("year", "id_seller", "id_buyer"), all.x = T)
+reciprocity[, bilateral_transaction := transaction_value.x + transaction_value.y] # will be NA if not bilateral (i.e. if transaction_value.y is NA)
 rm(reciprocity_reversed)
 
 # Seller Reciprocity
-reciprocity[, sr_ij := ifelse(is.na(transaction_value.y), 0, 1)] # check if bilateral relationship
+reciprocity[, sr_ij := ifelse(is.na(bilateral_transaction), 0, 1)]
 reciprocity[, sr_i  := mean(sr_ij), by = c("year", "id_seller")]
-reciprocity[, sr_iw := sum(sr_ij),  by = c("year", "id_seller")] # weighted sum
+reciprocity[, sr_iw := weighted.mean(sr_ij, w = transaction_value.x),  by = c("year", "id_seller")] # weighted mean (by sales)
 
 # Iterate over years to construct adjacency matrices
 KC_dt <- data.table()
@@ -82,7 +83,7 @@ for (yyy in 2008:2011) {
     d = 50 # number of steps to approximate inverse (too much memory required)
     KC <- data.table(year      = yyy,
                      id_seller = id_firm,
-                     KC_i      = as.vector(leontief_degree(l = alpha*A, 
+                     kc_i      = as.vector(leontief_degree(l = alpha*A, 
                                                            m = rep(1, n),
                                                            degree = d)))
     KC_dt <- rbind(KC_dt, KC)
@@ -97,7 +98,7 @@ network_metrics <- merge(network_metrics,
                          unique(reciprocity[, .(year, id_seller, sr_i, sr_iw)]), 
                          by=c("year", "id_seller"), all.x=T)
 network_metrics <- merge(network_metrics, 
-                         unique(KC_dt[, .(year, id_seller, KC_i)]), 
+                         unique(KC_dt[, .(year, id_seller, kc_i)]), 
                          by=c("year", "id_seller"), all.x=T)
 
 # Store file containing network metrics

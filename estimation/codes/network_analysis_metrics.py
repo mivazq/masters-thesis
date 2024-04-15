@@ -13,7 +13,7 @@ for year in range(2008, 2009):
     print("Loading gexf file for year", year)
     G_all_years[year] = nx.read_gexf(pathEst+"input/domestic_network_"+str(year)+".gexf")
 
-# iterate over nodes adding attributes
+""" # iterate over nodes adding attributes
 for year in range(2008, 2009):
 #for year in range(2008, 2012):
     print("Adding attributes to nodes for year", year)
@@ -21,19 +21,33 @@ for year in range(2008, 2009):
     for node in tqdm(G.nodes()):
         G.nodes[node]['est'] = 0 if (G.nodes[node]['section'] 
                                      not in ("A", "B", "D", "F", "G") 
-                                     and G.nodes[node]['est'] == 1) else G.nodes[node]['est']
+                                     and G.nodes[node]['est'] == 1) else G.nodes[node]['est'] """
 
-# compute network metrics
-metrics = panel[panel['isic_section'].isin(["A", "B", "D", "F", "G"])]
-metrics = metrics[~metrics['isic_division'].isin(["D16", "D30"])]
+# create lagged 'active' variable
+panel['lag_active'] = panel.groupby('id_sri')['active'].shift(1)
+panel.fillna({'lag_active':0}, inplace=True) # set nan values to 0
+panel['use_1st'] = np.where(panel['active']==1, 1, 0) # Active in current period
+panel['use_2nd'] = np.where((panel['active']==1) & (panel['lag_active']==1), 1, 0) # Active in current and previous period
+
+# create table counting 'use_1sd' and 'use_2nd' by isic_division
+ind_count = panel.groupby('isic_division')['use_1st'].sum().reset_index()
+
+# get names of all isic_divisions whose count is less than 100 as a list
+exclusions = list(ind_count[ind_count['use_1st']<100]['isic_division'].unique())
+
+# compute network metrics for all observations besides those in excluded isic_divisions
+metrics = panel[~panel['isic_division'].isin(exclusions)]
 metrics = metrics[['id_sri', 'year', 'isic_division']]
 metrics = metrics[metrics['year']==2008]
 
 # store nx.in_degree_centrality as column in metrics
 G = G_all_years[2008]
-indeg_cent = pd.Series(nx.in_degree_centrality(G))
 nx.set_node_attributes(G, nx.in_degree_centrality(G), 'in_degree_centrality')
 nx.set_node_attributes(G, nx.out_degree_centrality(G), 'out_degree_centrality')
+nx.set_node_attributes(G, nx.betweenness_centrality(G), 'betweenness_centrality')
+
+
+
 
 # extract 'in_degree_centrality' and 'out_degree_centrality' from G and store it in metrics
 cent = pd.DataFrame()

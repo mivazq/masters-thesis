@@ -58,7 +58,7 @@ for (industry in sort(df_table$ind)){
 cat("\\bottomrule \n")
 cat("\\end{tabular} \n")
 cat("\\end{adjustbox} \n")
-cat("\\justify \\footnotesize \\emph{Notes:} Industries are defined according to ISIC Revision 3.1 divisions (2-digits level, where the prefix letter indicates the corresponding ISIC Revision 3.1 section). For the 1\\ts{st} stage I consider all valid tax filings as described in Section \\ref{sec:data}. For the 2\\ts{nd} stage all valid observations are considered for which a valid observation is also available in the previous year. Finally, for the markup estimation procedure I exclude all industries (formatted in \\textcolor{red}{\\emph{red cursive}}) where the number of observations available for the 1\\ts{st} stage is below 100.\n")
+cat("\\justify \\footnotesize \\emph{Notes:} Industries are defined according to ISIC Revision 3.1 divisions (2-digits level, where the prefix letter indicates the corresponding ISIC Revision 3.1 section). For the 1\\ts{st} stage I consider all valid tax filings as described in Section \\ref{sec:data} in the main text. For the 2\\ts{nd} stage all valid observations are considered for which a valid observation is also available in the previous year. Finally, for the markup estimation procedure I exclude all industries (formatted in \\textcolor{red}{\\emph{red cursive}}) where the number of observations available for the 1\\ts{st} stage is below 100.\n")
 cat("\\end{table} \n")
 # cat("\\end{document} \n")
 sink()

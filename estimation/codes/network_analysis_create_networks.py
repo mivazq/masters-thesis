@@ -6,13 +6,9 @@ df_transactions = pd.read_csv(pathCle+"output/intermediate_transactions.csv")
 df_firm_info = pd.read_csv(pathCle+"output/firm_info.csv", 
                            usecols=["id_sri", "soe", "province", "region_geo", "isic_section", "isic_division"])
 df_tax_filings = pd.read_csv(pathCle+"output/tax_filings.csv")
-# df_tax_filings_imp_exp = pd.read_csv(pathCle+"output/tax_filings_imputed_expansion.csv")
 
 # retrieve IDs of tax filings firms (set used for markup estimation)
-IDs_tax_filings = df_tax_filings['id_sri'].unique()
-# IDs_tax_filings_imp_exp = df_tax_filings_imp_exp['id_sri'].unique()
-# est_IDs = np.concatenate((IDs_tax_filings, IDs_tax_filings_imp_exp), axis=0)
-est_IDs = IDs_tax_filings
+est_IDs = df_tax_filings['id_sri'].unique()
 est_IDs.sort()
 
 # create dictionary to contain the node attributes for all four years (2008-2011)

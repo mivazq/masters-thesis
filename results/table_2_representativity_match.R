@@ -54,7 +54,7 @@ cat("\\caption{\\label{tab:RepresentativityMatch} Representativity of Matched Ob
 cat("\\begin{adjustbox}{width=\\columnwidth,center} \n")
 cat("\\begin{tabular}{lccccccccc}")
 cat("\\toprule \n")
-cat("\\multicolumn{1}{l}{\\multirow{3}{*}{Industry group}} & \\multicolumn{4}{c}{Shares of markup sample} & & \\multicolumn{4}{c}{Shares of network sample} \\\\ \n")
+cat("\\multicolumn{1}{l}{\\multirow{3}{*}{Industry group}} & \\multicolumn{4}{c}{As share of markup sample} & & \\multicolumn{4}{c}{As share of network sample} \\\\ \n")
 cat("\\addlinespace \\cline{2-5} \\cline{7-10} \\addlinespace \n")
 cat(" & 2008 & 2009 & 2010 & 2011 & & 2008 & 2009 & 2010 & 2011 \\\\ \n")
 cat("\\addlinespace \\hline \\addlinespace \n")

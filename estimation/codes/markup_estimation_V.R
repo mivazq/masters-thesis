@@ -190,7 +190,16 @@ for (industry in industries) {
                              data = dt_est, subset = use_2nd & ind_sel, panel.id=c("id","year"))
         dt_est[ind_sel, olstl := list(olstl_model$coefficients)]
         dt_init[ind==industry & pf=="TL", names(as.list(olstl_model$coefficients)) := as.list(olstl_model$coefficients)]
-
+        
+        
+        
+        
+        # CONSTRUCT F-TEST
+        f_test = ((olscd_model$ssr - olstl_model$ssr)/3) / (olstl_model$ssr/degrees_freedom(olstl_model,type="resid"))
+        pval = pf(f_test, df1=olstl_model$nparams, df2=degrees_freedom(olstl_model,type="resid"), lower.tail = FALSE)
+        message("TL PVAL OF F-TEST FOR INDUSTRY ", industry, " IS:", pval)
+        message("\nSHOULD I USE TL INSTEAD OF CD: ", ifelse(pval<0.05,"YES","NO"), "\n")
+        
         # ACF estimates using DLW method on Cobb Douglas production function
         dt_est[ind_sel, dlwcd := list(DLW_CD_V(init_par = c(1, dt_init[ind==industry & pf=="CD"]$v, dt_init[ind==industry & pf=="CD"]$k)))]
         

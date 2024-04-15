@@ -43,3 +43,25 @@ fpci <- function(l_value, u_value, dig) {
 	return(paste0("[", formatC(round(l_value, dig), format='f', digits=dig, big.mark=","),
 				  ", ",formatC(round(u_value, dig), format='f', digits=dig, big.mark=","),"]"))
 }
+
+# Return stars
+sign_stars <- function(pvalue) {
+    # non-valid
+    if (is.na(pvalue) | pvalue<0) {
+        stop("P-value is missing or negative")
+        return()
+    }
+    # valid
+    if (pvalue < 0.001) {
+        return("***")
+    }
+    else if (pvalue < 0.01) {
+        return("**")
+    }
+    else if (pvalue < 0.05) {
+        return("*")
+    }
+    else {
+        return("")
+    }
+}

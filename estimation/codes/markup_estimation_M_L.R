@@ -189,6 +189,8 @@ for (industry in industries) {
                        m_lagl_lagk_lag = m_lag * l_lag * k_lag,
                        m_lagk          = m_lag * k,
                        l_lagk          = l_lag * k,
+                       m_lagl          = m_lag * l,            # new (for L as dynamic)
+                       m_laglk         = m_lag * l * k,        # new (for L as dynamic)
                        m_lagl_lagk     = m_lag * l_lag * k)]
         
         # OLS estimates on Cobb Douglas production function
@@ -308,7 +310,7 @@ table_elast_cd <- merge(table_elast_cd, results[, .(ind, DLW_m = m, DLW_l = l, D
 table_elast_cd <- merge(table_elast_cd, table_sample_nobs[, .(ind, n = obs_2nd_stage)], by="ind")
 table_elast_cd <- table_elast_cd[, .(desc, ind, n, FOC_m, OLS_m, DLW_m, FOC_l, OLS_l, DLW_l, FOC_k, OLS_k, DLW_k)]
 table_elast_cd <- table_elast_cd[, c("FOC_tot", "OLS_tot", "DLW_tot") := list(FOC_m+FOC_l+FOC_k, OLS_m+OLS_l+OLS_k, DLW_m+DLW_l+DLW_k)]
-write_xlsx(table_elast_cd, paste0(pathEst, "output/CD_elasticities_ML_by_industry.xlsx"))
+write_xlsx(table_elast_cd, paste0(pathEst, "output/CD_elasticities_ML_by_industry_new.xlsx"))
 
 # Remove no longer needed objects
 rm(dt_init, results, shares)
@@ -346,7 +348,7 @@ for (pf in c("CD", "TL")) {
     table_dist_mu <- merge(table_dist_mu, df_industries[, .(desc=isic_division_desc, ind=isic_division)], by="ind", all.x=T)
     table_dist_mu <- merge(table_dist_mu, table_sample_nobs[, .(ind, n=obs_1st_stage)], by="ind")
     table_dist_mu <- table_dist_mu[, .(desc, ind, n, est, mean, sd, min, p10, p25, p50, p75, p90, max)]
-    write_xlsx(table_dist_mu, paste0(pathEst, "output/",pf,"_firm_markup_",var,"_distribution_by_industry.xlsx"))
+    write_xlsx(table_dist_mu, paste0(pathEst, "output/",pf,"_firm_markup_",var,"_distribution_by_industry_new.xlsx"))
 }
 }
 
