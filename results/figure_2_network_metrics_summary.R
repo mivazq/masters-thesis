@@ -13,6 +13,10 @@
 source('~/data/transactions_ecuador/3_mivazq/Masters_Thesis/setup.R')
 #///////////////////////////////////////////////////////////////////////////////
 
+#///////////////////////////////////////////////////////////////////////////////
+#### PREPARE DATA ####
+#///////////////////////////////////////////////////////////////////////////////
+
 # Load data and merge
 load(file=paste0(pathEst, "output/firm_markups_V.Rdata"))
 load(file=paste0(pathEst, "output/firm_markups_ML.Rdata"))
@@ -36,146 +40,80 @@ network_metrics <- rbind(network_metrics, matched)
 network_metrics[, match := NULL]
 rm(matched)
 
+# Change order of factors
+network_metrics$variable <- factor(network_metrics$variable, levels=c("wsi_i", "wsi_iw", "ti_i", "ti_iw", "sr_i", "sr_iw", "ctv_i", "kc_i"))
+
 # Winsorize values for CTV and KC (top 0.1%)
 threshold <- p999(network_metrics[variable=="ctv_i" & sample=="all"]$value)
 network_metrics[variable=="ctv_i" & value>threshold, value := threshold]
 threshold <- p999(network_metrics[variable=="kc_i" & sample=="all"]$value)
 network_metrics[variable=="kc_i" & value>threshold, value := threshold]
 
-# # Create factor variable
-# network_metrics[, fact := interaction(variable,sample)]
-# network_metrics[, fact := factor(fact, levels = c("wsi_i.all", "wsi_i.match", 
-#                                                   "ti_i.all", "ti_i.match", 
-#                                                   "ctv_i.all", "ctv_i.match", 
-#                                                   "sr_i.all", "sr_i.match", 
-#                                                   "KC_i.all", "KC_i.match"))]
+# Center data
+network_metrics_centered <- copy(network_metrics)
+network_metrics_centered[, value  := (value - mean(value))/mean(value), by = c("variable", "year", "seller_sec")]
+
+# Generate qq-data
+qqpoints = seq(0,1,0.01)
+qqplot_data = data.table(quantiles = rep(qqpoints, 2),
+                         axis      = c(rep("x", length(qqpoints)), 
+                                       rep("y", length(qqpoints))))
+for (var in levels(network_metrics$variable)) {
+    for (smpl in c("all","match")) {
+        dist = tanh(network_metrics[variable==var & sample==smpl]$value) # take logs
+        # dist = network_metrics[variable==var & sample==smpl]$value # take logs
+        dist = dist # remove non-finite values
+        vals = quantile(dist, probs=qqpoints, na.rm=T)
+        qqplot_data[axis==ifelse(smpl=="all","x","y"), value := vals]
+    }
+    setnames(qqplot_data, "value", var)
+}
+rm(var, smpl, vals, qqpoints)
+qqplot_data <- melt(qqplot_data, 
+                    id.vars       = c('quantiles', 'axis'), 
+                    measure.vars  = levels(network_metrics$variable))
+qqplot_data <- dcast(qqplot_data,
+                     quantiles + variable ~ axis,
+                     fun = mean,
+                     value.var="value")
+
+#///////////////////////////////////////////////////////////////////////////////
+#### OUPUT PLOTS ####
+#///////////////////////////////////////////////////////////////////////////////
+
+geom_density_2d?
 
 
-figure = ggplot(network_metrics, aes(x = value)) + 
-    geom_density(aes(color=sample)) + facet_wrap(~variable, ncol = 1, scales="free") + 
+# ggplot(qqplot_data[variable %nin% c("ctv_i","kc_i")], aes(x = x, y = y)) +
+ggplot(qqplot_data, aes(x = x, y = y)) + 
+    geom_point(shape="circle open") + geom_segment(aes(x=0,xend=1,y=0,yend=1), colour='red', linewidth=0.1) + 
+    facet_wrap(~variable, ncol=2, scales="free")
+    
+qqplot(y=network_metrics[variable=="kc_i" & sample=="match"]$value, x=network_metrics[variable=="kc_i" & sample=="all"]$value)
+
+
+# Non-centered measures
+ggplot(network_metrics[variable=="sr_i"], aes(x = value, fill=sample)) + 
+    geom_density(alpha=0.5)
+
++ facet_wrap(~variable, ncol = 1, scales="free")
+
+
++ 
     scale_x_continuous(trans='log') + theme_bw() + theme(legend.position = "bottom")
 ggsave(figure, filename = paste0(pathFig,sysdate,'_figure_2_distribution_network.pdf'), width = 10, height = 10)
 
 
-network_metrics[, value  := (value  - mean(value))/mean(value),   by = c("variable", "year", "seller_sec")]
+ggplot(network_metrics, aes(x = value)) + 
+    geom_qq(aes(sample=sample)) + facet_wrap(~variable)
+
++ 
+    scale_x_continuous(trans='log') + theme_bw() + theme(legend.position = "bottom")
 
 
-
-figure = ggplot(network_metrics, aes(x = value)) + 
+# Centered measures
+figure = ggplot(network_metrics_centered, aes(x = value)) + 
     geom_density(aes(color=sample)) + facet_wrap(~variable, ncol = 1, scales="free") + 
     scale_x_continuous(trans='log') + theme_bw() + theme(legend.position = "bottom")
 ggsave(figure, filename = paste0(pathFig,sysdate,'_figure_2_distribution_network_centered.pdf'), width = 10, height = 10)
 
-
-# 
-# 
-# # CTV
-# for (smpl in c("all","match")) {
-#     
-#     if (smpl=="all") {
-#         data = network_metrics
-#     } else {
-#         data = network_metrics[match==1]
-#     }
-#     
-#     fig <- ggplot(data, aes(x = log(ctv_i))) +
-#         geom_density() +
-#         ylab("Frequency") +
-#         xlab(expression("log("*italic(CTV[i])*")")) +
-#         scale_x_continuous(breaks = c(log(10^-5),log(10^-2),log(10^1)), labels = c(expression(10^-5),expression(10^-2),expression(10^1))) +
-#         theme_bw()+
-#         theme(legend.position = c(0.75, 0.1), legend.title = element_blank(), axis.title = element_text(size = 20),
-#               axis.text.x = element_text(vjust = unit(0.1, "mm")), axis.title.x = element_text(vjust = unit(0.1, "mm")),
-#               legend.key.size = unit(12,"mm"), axis.text = element_text(size = 15, color = "black"),
-#               legend.text = element_text(size = 20), strip.background = element_blank(), strip.text = element_text(size = 20),
-#               panel.spacing = unit(1,"cm"), legend.background = element_blank(), legend.box.background = element_rect(colour = "black", fill = "white"),
-#               axis.title.y = element_text(angle = 0, vjust = 0.5), legend.text.align = 0,
-#               text = element_text(family = "Palatino"))
-#     
-#     assign(paste0("figure_ctv_",smpl), fig)
-# }
-# 
-# figure <- ggarrange(figure_ctv_all, figure_ctv_match, ncol=2, nrow=1, align="h")
-# ggsave(figure, filename = paste0(pathFig,sysdate,'_CTV_distribution.pdf'), width = 10, height = 10)
-# 
-# 
-# 
-# 
-# # WSI
-# figure <- ggplot(network_metrics, aes(x = wsi_i)) +
-#     geom_histogram() +
-#     # stat_function(fun = dlnorm, args = list(mean = log(mean(network_metrics$ctv_i)), sd = sd(network_metrics$ctv_i))) +
-#     facet_wrap(~year, nrow = 2, ncol = 2, scales = 'fixed') +
-#     ylab("Frequency") +
-#     xlab(expression(italic(WSI[i]))) +
-#     # scale_x_continuous(breaks = c(log(10^-5),log(10^-2),log(10^1)), labels = c("10^-5","10^-2","10^1")) +
-#     theme_bw()+
-#     theme(legend.position = c(0.75, 0.1), legend.title = element_blank(), axis.title = element_text(size = 20),
-#           axis.text.x = element_text(vjust = unit(0.1, "mm")), axis.title.x = element_text(vjust = unit(0.1, "mm")),
-#           legend.key.size = unit(12,"mm"), axis.text = element_text(size = 15, color = "black"),
-#           legend.text = element_text(size = 20), strip.background = element_blank(), strip.text = element_text(size = 20),
-#           panel.spacing = unit(1,"cm"), legend.background = element_blank(), legend.box.background = element_rect(colour = "black", fill = "white"),
-#           axis.title.y = element_text(angle = 0, vjust = 0.5), legend.text.align = 0,
-#           text = element_text(family = "serif"))
-# ggsave(figure, filename = paste0(pathFig,sysdate,'_WSI_distribution.pdf'), width = 10, height = 10)
-# 
-# 
-# # TI
-# figure <- ggplot(network_metrics, aes(x = log(ti_i))) +
-#     geom_histogram() +
-#     # stat_function(fun = dlnorm, args = list(mean = log(mean(network_metrics$ctv_i)), sd = sd(network_metrics$ctv_i))) +
-#     facet_wrap(~year, nrow = 2, ncol = 2, scales = 'fixed') +
-#     ylab("Frequency") +
-#     xlab(expression("log("~italic(TI[i])~")")) +
-#     # scale_x_continuous(breaks = c(log(10^-8),log(10^-6),log(10^-4),log(10^-2),log(10^0)), labels = c("10^-8","10^-6","10^-4","10^-2","10^0")) +
-#     theme_bw()+
-#     theme(legend.position = c(0.75, 0.1), legend.title = element_blank(), axis.title = element_text(size = 20),
-#           axis.text.x = element_text(vjust = unit(0.1, "mm")), axis.title.x = element_text(vjust = unit(0.1, "mm")),
-#           legend.key.size = unit(12,"mm"), axis.text = element_text(size = 15, color = "black"),
-#           legend.text = element_text(size = 20), strip.background = element_blank(), strip.text = element_text(size = 20),
-#           panel.spacing = unit(1,"cm"), legend.background = element_blank(), legend.box.background = element_rect(colour = "black", fill = "white"),
-#           axis.title.y = element_text(angle = 0, vjust = 0.5), legend.text.align = 0,
-#           text = element_text(family = "serif"))
-# ggsave(figure, filename = paste0(pathFig,sysdate,'_TI_distribution.pdf'), width = 10, height = 10)
-# 
-# 
-# # SR
-# figure <- ggplot(network_metrics[sr_i!=0], aes(x = log(sr_i))) +
-#     geom_histogram() +
-#     # stat_function(fun = dlnorm, args = list(mean = log(mean(network_metrics$ctv_i)), sd = sd(network_metrics$ctv_i))) +
-#     facet_wrap(~year, nrow = 2, ncol = 2, scales = 'fixed') +
-#     ylab("Frequency") +
-#     xlab(expression(italic(SR[i]))) +
-#     scale_x_continuous(breaks = c(log(10^-8),log(10^-6),log(10^-4),log(10^-2),log(10^0)), labels = c("10^-8","10^-6","10^-4","10^-2","10^0")) +
-#     theme_bw()+
-#     theme(legend.position = c(0.75, 0.1), legend.title = element_blank(), axis.title = element_text(size = 20),
-#           axis.text.x = element_text(vjust = unit(0.1, "mm")), axis.title.x = element_text(vjust = unit(0.1, "mm")),
-#           legend.key.size = unit(12,"mm"), axis.text = element_text(size = 15, color = "black"),
-#           legend.text = element_text(size = 20), strip.background = element_blank(), strip.text = element_text(size = 20),
-#           panel.spacing = unit(1,"cm"), legend.background = element_blank(), legend.box.background = element_rect(colour = "black", fill = "white"),
-#           axis.title.y = element_text(angle = 0, vjust = 0.5), legend.text.align = 0,
-#           text = element_text(family = "serif"))
-# ggsave(figure, filename = paste0(pathFig,sysdate,'_SR_distribution.pdf'), width = 10, height = 10)
-# 
-# 
-# 
-# # KC
-# figure <- ggplot(network_metrics, aes(x = log(KC_i))) +
-#     geom_histogram() +
-#     # stat_function(fun = dlnorm, args = list(mean = log(mean(network_metrics$ctv_i)), sd = sd(network_metrics$ctv_i))) +
-#     facet_wrap(~year, nrow = 2, ncol = 2, scales = 'fixed') +
-#     ylab("Frequency") +
-#     xlab(expression(italic(KC[i]))) +
-#     # scale_x_continuous(breaks = c(log(10^-8),log(10^-6),log(10^-4),log(10^-2),log(10^0)), labels = c("10^-8","10^-6","10^-4","10^-2","10^0")) +
-#     theme_bw()+
-#     theme(legend.position = c(0.75, 0.1), legend.title = element_blank(), axis.title = element_text(size = 20),
-#           axis.text.x = element_text(vjust = unit(0.1, "mm")), axis.title.x = element_text(vjust = unit(0.1, "mm")),
-#           legend.key.size = unit(12,"mm"), axis.text = element_text(size = 15, color = "black"),
-#           legend.text = element_text(size = 20), strip.background = element_blank(), strip.text = element_text(size = 20),
-#           panel.spacing = unit(1,"cm"), legend.background = element_blank(), legend.box.background = element_rect(colour = "black", fill = "white"),
-#           axis.title.y = element_text(angle = 0, vjust = 0.5), legend.text.align = 0,
-#           text = element_text(family = "serif"))
-# ggsave(figure, filename = paste0(pathFig,sysdate,'_KC_distribution.pdf'), width = 10, height = 10)
-# 
-# 
-# 

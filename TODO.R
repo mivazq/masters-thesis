@@ -1,17 +1,11 @@
 # TO DO FROM ELIE:
 #     
-#     - Show that it's still sensible to consider L within V as it is indeed variable.
-#     --> Show distribution of %L variation within firm across years using Davis Growth Rate
-#     (Y_t+1 - Y_t) / (1/2)*(Y_t+1 + Y_t)
-#     - Try standardizing distributions of Y, M, L, V, before computing correlations (Y,L) to test for "variability" of input
+
 #     
 #     - Aggregate at e.g. deciles of markups per sectors, create network, check measures
 #     
 #     - Do not scale Y variable as it will remove variation in X across years
-#     
-#     - Interesting to show: instead of aggregate markups (which haven't really changed). 
-#     show whether markup ranking positions within industries change across time
-#     
+#
 #     - For magnitude: check what it takes to from from 25th to 75 percentile of X, 
 #     explain that effect in Y terms. E.g. moving from 25th to 75th percentile of WSI
 #     implies a 8pp increase in markups
@@ -25,3 +19,19 @@
 #     
 #     - To complement plots on network metrics distributions have a table on zeros (not shown due to log scale)
 #     --> Remove 1 from KC_i so that no system relevant disappear with logs and plot is better
+#
+#     - Check if firms not in PA export more as share of revenue?
+#     --> Maybe they are pure exporters and could be giving up productio domestically (so WSI goes down)
+#     but markup might be high because they are exporters
+#
+#
+# DONE
+#
+#     - Show that it's still sensible to consider L within V as it is indeed variable.
+#     --> Show distribution of %L variation within firm across years using Davis Growth Rate
+#     (Y_t+1 - Y_t) / (1/2)*(Y_t+1 + Y_t)
+#     - Try standardizing distributions of Y, M, L, V, before computing correlations (Y,L) to test for "variability" of input
+#
+#     - Interesting to show: instead of aggregate markups (which haven't really changed). 
+#     show whether markup ranking positions within industries change across time
+#     

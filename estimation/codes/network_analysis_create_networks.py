@@ -24,7 +24,7 @@ for year in range(2008, 2012):
     IDs.sort()
     # create pandas dataframe with IDs as column
     node_attr_all_years[year] = pd.DataFrame(IDs, columns=['id_sri'])
-    # add attribute of whether the firm is in the estimation set
+    # add attribute of whether the firm ID ever appears in the estimation set
     node_attr_all_years[year]['est'] = np.where(node_attr_all_years[year]['id_sri'].isin(est_IDs), 1, 0)
     # merge other firm info
     node_attr_all_years[year] = pd.merge(node_attr_all_years[year], df_firm_info, on='id_sri', how='left')
@@ -66,4 +66,20 @@ for year in range(2008, 2012):
 for year in range(2008, 2012):
     print("Storing gexf file for year", year)
     nx.write_gexf(G_all_years[year], pathEst+"input/domestic_network_"+str(year)+".gexf")
+
+# create new graphs where only firms that ever appear in the estimation set are included
+G_est_all_years = {}
+
+# create a graph for each year
+for year in range(2008, 2012):
+    print("Creating graph for year", year)
+    G = G_all_years[year].copy()
+    remove_nodes_list = [node for node, data in G.nodes(data=True) if data['est'] == 0]
+    G.remove_nodes_from(remove_nodes_list)
+    G_est_all_years[year] = G
+
+# output graphs to gexf files for faster read later
+for year in range(2008, 2012):
+    print("Storing gexf file for year", year)
+    nx.write_gexf(G_est_all_years[year], pathEst+"input/domestic_est_network_"+str(year)+".gexf")
 

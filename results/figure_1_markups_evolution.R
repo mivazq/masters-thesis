@@ -41,7 +41,7 @@ agg_mu <- data.table(input     = c("m", "l", "v"),
 # Calculate weighted averages (using input shares as weight)
 for (i_year in 2008:2011) {
     for (i_pf in c("cd","tl")) {
-        for (i_input in c("m","l","v")) {
+        for (i_input in c("v","m","l")) {
             for (i_ind_group in c("AF","G","HQ")) {
                 agg_mu[input==i_input & ind_group==i_ind_group & pf==i_pf & year==i_year, 
                        value := weighted.mean(x = markups[input==i_input & ind_group==i_ind_group & pf==i_pf & year==i_year]$mu, 
@@ -57,9 +57,9 @@ for (i_year in 2008:2011) {
 }
 rm(i_input, i_ind_group, i_pf, i_year)
 
-# Define titles for facets (\u03BC is unicode mu)
-agg_mu[, facets := paste0("italic(\u03BC[t]^",toupper(input),")")]
-agg_mu$facets <- factor(agg_mu$facets, levels=c("italic(\u03BC[t]^V)", "italic(\u03BC[t]^M)", "italic(\u03BC[t]^L)"))
+# Remove labour since too wrong
+agg_mu <- agg_mu[input!="l"]
+agg_mu[, pf := ifelse(pf=="cd", "Cobb-Douglas Production", "Translog Production")] # make nice
 
 # Define legend labels (\u2013 is unicode en-dash)
 lgndlab1 <- "A01\u2013F45"
@@ -67,40 +67,41 @@ lgndlab2 <- "G50\u2013G52"
 lgndlab3 <- "H55\u2013Q99"
 lgndlab4 <- "All industries"
 
-# Plot evolution by production function and input (for appendix)
-for (i_pf in c("cd","tl")) {
-    
-    # Minimum should be at least 0 on y-axis
-    #min_val = ifelse(min(agg_mu[pf==i_pf]$value)>0, 0, NA)
-    
-    ggplot(agg_mu[pf==i_pf], aes(x = year, y = value, color = ind_group)) +
-        geom_line() + geom_hline(yintercept=1) +
-        geom_point() + facet_wrap(~facets, nrow = 1, ncol = 3, scales = 'free_y', labeller=label_parsed) +
-        scale_color_discrete(labels = c(lgndlab1, lgndlab2, lgndlab3, lgndlab4)) +
-        # scale_y_continuous(limits = c(min_val, NA), labels = function(x) fp(x, dig=1)) +
-        scale_y_continuous(labels = function(x) fp(x, dig=1)) +
-        labs(x = "Year", y = "Mu", color = "") +
-        theme_bw() + 
-        theme(legend.position = "bottom", text = element_text(family = "Palatino"), 
-              strip.background=element_blank(), strip.text=element_text(size=30),
-              legend.text = element_text(size = 25), legend.key.size = unit(25, "mm"), 
-              axis.text = element_text(size = 25, color = "black"),
-              axis.title = element_blank())
-    ggsave(paste0(pathFig,sysdate,"_",toupper(i_pf),"_aggregate_markup_appendix.pdf"), width = 15, height = 10, device=cairo_pdf)
-}
-
 #  Plot only CD for input V (for main text)
-ggplot(agg_mu[pf=="cd" & input=="v"], aes(x = year, y = value, color = ind_group)) +
-    geom_line() + geom_hline(yintercept=1) + geom_point() +
-    scale_color_discrete(labels = c(lgndlab1, lgndlab2, lgndlab3, lgndlab4)) +
-    # scale_y_continuous(limits = c(min_val, NA), labels = function(x) fp(x, dig=1)) +
+ggplot(agg_mu[pf=="Cobb-Douglas Production" & input=="v"], aes(x = year, y = value, color = ind_group)) +
+    geom_line(linewidth=1.5) + geom_hline(yintercept=1) + geom_point() +
+    scale_color_discrete(labels = c(lgndlab1, lgndlab2, lgndlab3, lgndlab4), type = c("#f8766d","#00ba38","#619cff","#a3a500")) +
     scale_y_continuous(labels = function(x) fp(x, dig=1)) +
-    labs(x = "Year", y = expression(italic("\u03BC"^"V")) , color = "") +
+    xlab("Year") + ylab(expression(italic("\u03BC"["t"]^"V"))) +
     theme_bw() + 
     theme(legend.position = "bottom", text = element_text(family = "Palatino"), 
-          strip.background=element_blank(), strip.text=element_text(size=20),
-          legend.text = element_text(size = 25), legend.key.size = unit(25, "mm"), 
+          strip.background=element_blank(), strip.text=element_text(size=20), legend.title = element_blank(),
+          legend.text = element_text(size = 25, margin = margin(r = 20)), legend.key.size = unit(20, "mm"), 
           axis.text = element_text(size = 25, color = "black"), axis.title.y = element_text(angle = 0, vjust = 0.5),
-          axis.title = element_text(size = 25), axis.title.x = element_blank())
+          axis.title = element_text(size = 25, color = "black"), axis.title.x = element_blank())
 ggsave(paste0(pathFig,sysdate,"_aggregate_markup_main.pdf"), width = 15, height = 10, device=cairo_pdf)
+
+# Plot evolution by production function and input (for appendix)
+for (i_input in c("v", "m")) {
+    
+    ylab = ifelse(i_input=="v", 
+                  expression(italic("\u03BC"["t"]^"V")),
+                  expression(italic("\u03BC"["t"]^"M")))
+    
+    ggplot(agg_mu[input==i_input], aes(x = year, y = value, color = ind_group)) +
+        geom_line(linewidth=1.5) + geom_hline(yintercept=1) + geom_point() +
+        facet_wrap(~pf) +
+        scale_color_discrete(labels = c(lgndlab1, lgndlab2, lgndlab3, lgndlab4), type = c("#f8766d","#00ba38","#619cff","#a3a500")) +
+        scale_y_continuous(labels = function(x) fp(x, dig=1)) +
+        xlab("Year") + ylab(ylab) +
+        theme_bw() + 
+        theme(legend.position = "bottom", text = element_text(family = "Palatino"), 
+              legend.title = element_blank(), 
+              strip.background=element_blank(), strip.text=element_text(size=25, color = "black"),
+              legend.text = element_text(size = 25, margin = margin(r = 20)), legend.key.size = unit(20, "mm"), 
+              axis.text = element_text(size = 25, color = "black"), 
+              axis.title.y = element_text(angle = 0, vjust = 0.5, size = 25, color = "black"), 
+              axis.title.x = element_blank())
+    ggsave(paste0(pathFig,sysdate,"_aggregate_markup_",toupper(i_input),"_appendix.pdf"), width = 15, height = 10, device=cairo_pdf)
+}
 

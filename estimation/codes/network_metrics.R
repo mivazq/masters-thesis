@@ -1,5 +1,5 @@
 #///////////////////////////////////////////////////////////////////////////////
-# File name:		
+# File name:		network_metrics.R
 # Author:			Miguel Vázquez Vázquez
 # Creation date:    21 February 2023
 # Description:      This file estimates markups for all firms, year to year.
@@ -89,8 +89,11 @@ for (yyy in 2008:2011) {
     KC_dt <- rbind(KC_dt, KC)
 }
 
+# Remove initial beta (=1) from KC measure such that firms with no importance have 1
+KC_dt[, kc_i := kc_i - 1]
+
 # Combine all metrics in a single table with all sellers (must have sector info)
-network_metrics  <- unique(df_transactions[!is.na(seller_sec), .(year, id_seller, seller_sec)])
+network_metrics <- unique(df_transactions[!is.na(seller_sec), .(year, id_seller, seller_sec)])
 network_metrics <- merge(network_metrics, 
                          unique(df_transactions[, .(year, id_seller, wsi_i, wsi_iw, ti_i, ti_iw, tv_i, ctv_i)]), 
                          by=c("year", "id_seller"), all.x=T)

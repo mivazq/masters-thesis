@@ -13,16 +13,6 @@ for year in range(2008, 2009):
     print("Loading gexf file for year", year)
     G_all_years[year] = nx.read_gexf(pathEst+"input/domestic_network_"+str(year)+".gexf")
 
-""" # iterate over nodes adding attributes
-for year in range(2008, 2009):
-#for year in range(2008, 2012):
-    print("Adding attributes to nodes for year", year)
-    G = G_all_years[year]
-    for node in tqdm(G.nodes()):
-        G.nodes[node]['est'] = 0 if (G.nodes[node]['section'] 
-                                     not in ("A", "B", "D", "F", "G") 
-                                     and G.nodes[node]['est'] == 1) else G.nodes[node]['est'] """
-
 # create lagged 'active' variable
 panel['lag_active'] = panel.groupby('id_sri')['active'].shift(1)
 panel.fillna({'lag_active':0}, inplace=True) # set nan values to 0
@@ -42,6 +32,15 @@ metrics = metrics[metrics['year']==2008]
 
 # store nx.in_degree_centrality as column in metrics
 G = G_all_years[2008]
+
+# create new graph G by removing nodes with 'est'==0
+G_est = G.copy()
+nx.remove_nodes_from(G_est, [node for node, data in G_est.nodes(data=True) if data['est'] == 0])
+
+
+remove_nodes = list(key for key, value in nx.get_node_attributes(G, 'est').items() if value == 0)
+
+
 nx.set_node_attributes(G, nx.in_degree_centrality(G), 'in_degree_centrality')
 nx.set_node_attributes(G, nx.out_degree_centrality(G), 'out_degree_centrality')
 nx.set_node_attributes(G, nx.betweenness_centrality(G), 'betweenness_centrality')
