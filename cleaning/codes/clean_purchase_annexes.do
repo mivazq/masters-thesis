@@ -222,9 +222,9 @@ foreach file in `files' {
 
     * 5 out of the remaining 8 observations involve the big oil company and are indeed
     * credible. I checked the other 3 buyer-seller combinations and the magnitude is
-    * completely off. Bother tax_base_12 and vat should be heavily adjusted but I
+    * completely off. Both tax_base_12 and vat should be heavily adjusted but I
     * have no reference point, so I set all 3 cases to 0.
-    gen tag5 = (id_buyer!=129098 & id_seller!=129098 & tax_base_12>=100000000 & tag==1)
+    gen tag5 = (id_buyer!=129098 BOtd_seller!=129098 & tax_base_12>=100000000 & tag==1)
     replace tax_base_12 = 0 if tag5==1
     replace vat = 0 if tag5==1
     replace tag = 0 if tag5==1 // These are solved

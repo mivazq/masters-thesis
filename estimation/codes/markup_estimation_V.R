@@ -327,7 +327,7 @@ rm(table_dist_mu_ols, table_dist_mu_dlw)
 #----                           7 - EXPORT FIRM MARKUPS                     ----
 #///////////////////////////////////////////////////////////////////////////////
 
-markups_V <- subset(dt_est, select=c("id", "year", "ind", "v", colnames(dt_est)[grep("mu_", colnames(dt_est))]))
+markups_V <- subset(dt_est, select=c("id", "year", "ind", "v", colnames(dt_est)[grep("mu_", colnames(dt_est))], "alpha_v"))
 markups_V[, V := exp(v)]
 markups_V[, v := NULL]
 save(markups_V, file=paste0(pathEst, "output/firm_markups_V.Rdata"))
