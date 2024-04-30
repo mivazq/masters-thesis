@@ -87,10 +87,9 @@ for (i_input in c("v", "m")) {
     ggsave(paste0(pathFig,sysdate,"_std_markup_",toupper(i_input),"_appendix.pdf"), width = 15, height = 10, device=cairo_pdf)
 }
 
-# Plot evolution by production function and input (for appendix)
+# Plot evolution by production function and input (for main)
 ggplot(std_mu[input=="v" & pf=="Cobb-Douglas Production"], aes(x = year, y = value, color = ind_group)) +
     geom_line(linewidth=1.5) + geom_point() +
-    facet_wrap(~pf) +
     scale_color_discrete(labels = c(lgndlab1, lgndlab2, lgndlab3, lgndlab4), type = c("#f8766d","#00ba38","#619cff","#a3a500")) +
     scale_y_continuous(labels = function(x) fp(x, dig=2), limits = c(0,NA)) +
     xlab("Year") + ylab(expression(italic("\u03C3"["\u03BC"["it"]^"V"]))) +
