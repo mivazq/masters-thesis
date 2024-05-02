@@ -1,7 +1,7 @@
 #///////////////////////////////////////////////////////////////////////////////
 # File name:		network_metrics.R
 # Author:			Miguel Vázquez Vázquez
-# Creation date:    21 February 2023
+# Creation date:    21 February 2024
 # Description:      This file estimates markups for all firms, year to year.
 # Input:            
 #                   -
@@ -11,7 +11,7 @@
 #///////////////////////////////////////////////////////////////////////////////
 source('~/data/transactions_ecuador/3_mivazq/Masters_Thesis/setup.R')
 #///////////////////////////////////////////////////////////////////////////////
-#----                       1 - CONSTRUCT METRICS                           ----
+#----                             1 - LOAD DATA                             ----
 #///////////////////////////////////////////////////////////////////////////////
 
 # Load transactions and firm information
@@ -45,234 +45,13 @@ cat("There are",
     "and the total number of unique transactions (frequencies) is",fp(sum(df_transactions$transaction_volume)))
 
 
-# # Check how much firms trade across regions
-# regional_trade <- dcast(data = df_transactions,
-#                         formula = seller_province + buyer_province ~ .,
-#                         fun = sum,
-#                         value.var=c("transaction_value","transaction_volume"))
-# regional_trade[, tot_val := sum(transaction_value), by = "buyer_province"]
-# regional_trade[, tot_vol := sum(transaction_volume), by = "buyer_province"]
-# regional_trade[, transaction_value := transaction_value/tot_val]
-# regional_trade[, transaction_volume := transaction_volume/tot_vol]
-# regional_trade[, buyer_province := factor(buyer_province)]
-# regional_trade[, seller_province := factor(seller_province, levels=rev(levels(regional_trade$buyer_province)))]
-# 
-# ggplot(regional_trade, aes(x = buyer_province, y = seller_province)) +
-#     geom_tile(aes(fill = transaction_value)) +
-#     scale_fill_gradient(low = "white", high = "black") +
-#     labs(title = "Transaction Value Across Regions Heatmap (as share of province's total purchases' value)", x = "Province of buyer", y = "Province of seller") +
-#     theme(axis.text.x = element_text(angle=90))
-# 
-# ggplot(regional_trade, aes(x = buyer_province, y = seller_province)) +
-#     geom_tile(aes(fill = transaction_volume)) +
-#     scale_fill_gradient(low = "white", high = "black") +
-#     labs(title = "Transaction Counts Across Regions Heatmap (as share of province's total purchases' count)", x = "Province of buyer", y = "Province of seller") +
-#     theme(axis.text.x = element_text(angle=90))
-# 
-# # How is this picture different for our markup sample?
-# regional_trade_mu <- dcast(data = df_transactions[id_seller %in% markups_V$id],
-#                            formula = seller_province + buyer_province ~ .,
-#                            fun = sum,
-#                            value.var=c("transaction_value","transaction_volume"))
-# regional_trade_mu <- merge(regional_trade_mu, regional_trade[,.(seller_province,buyer_province)], all.y = T) # ensure all combinations exist
-# regional_trade_mu[is.na(transaction_value), c("transaction_value", "transaction_volume") := 0] # assign zeros to previously missing combinations
-# regional_trade_mu[, tot_val := sum(transaction_value), by = "buyer_province"]
-# regional_trade_mu[, tot_vol := sum(transaction_volume), by = "buyer_province"]
-# regional_trade_mu[, transaction_value := transaction_value/tot_val]
-# regional_trade_mu[, transaction_volume := transaction_volume/tot_vol]
-# regional_trade_mu[, buyer_province := factor(buyer_province)]
-# regional_trade_mu[, seller_province := factor(seller_province, levels=rev(levels(regional_trade_mu$buyer_province)))]
-# 
-# 
-# ggplot(regional_trade_mu, aes(x = buyer_province, y = seller_province)) +
-#     geom_tile(aes(fill = transaction_value)) +
-#     scale_fill_gradient(low = "white", high = "black") +
-#     labs(title = "Transaction Value Across Regions Heatmap (as share of province's total purchases' value)", x = "Province of buyer", y = "Province of seller") +
-#     theme(axis.text.x = element_text(angle=90))
-# 
-# ggplot(regional_trade_mu, aes(x = buyer_province, y = seller_province)) +
-#     geom_tile(aes(fill = transaction_volume)) +
-#     scale_fill_gradient(low = "white", high = "black") +
-#     labs(title = "Transaction Counts Across Regions Heatmap (as share of province's total purchases' count)", x = "Province of buyer", y = "Province of seller") +
-#     theme(axis.text.x = element_text(angle=90))
+#///////////////////////////////////////////////////////////////////////////////
+#----                       2 - CONSTRUCT METRICS                           ----
+#///////////////////////////////////////////////////////////////////////////////
 
-# # Print information on number of buyers, sellers, transactions per year
-# sss = 0; bbb = 0; ttt = 0;
-# for (yyy in 2008:2011) {
-#     cat("In",yyy,"there were",fp(length(unique(df_transactions[year==yyy]$id_seller))),
-#         "unique sellers,",fp(length(unique(df_transactions[year==yyy]$id_buyer))), 
-#         "unique buyers, and",fp(nrow(df_transactions[year==yyy])),"yearly aggregated transactions.\n")
-#     sss = sss + length(unique(df_transactions[year==yyy]$id_seller))
-#     bbb = bbb + length(unique(df_transactions[year==yyy]$id_buyer))
-#     ttt = ttt + nrow(df_transactions[year==yyy])
-# }
-# cat("Average unique sellers:", fp(sss/4))
-# cat("Average unique buyers:", fp(bbb/4))
-# cat("Average yearly transactions:", fp(ttt/4))
-# 
-# # Print information on density of network
-# ddd = 0;
-# for (yyy in 2008:2011) {
-#     sss = unique(df_transactions[year==yyy]$id_seller) 
-#     bbb = unique(df_transactions[year==yyy]$id_buyer)
-#     aaa = length(unique(c(sss, bbb)))
-#     ttt_max = ( aaa*(aaa-1) ) / 2
-#     ttt = nrow(df_transactions[year==yyy])
-#     cat("In",yyy,"there were",fp(aaa),"unique agents. Thus, the number of potential connections is",fp(ttt_max)," giving us a density of",ttt/ttt_max,"\n")
-#     ddd = ddd + ttt/ttt_max
-# }
-# cat("Average density:", fp(ddd/4,7))
-
-# # Frequency Intensity by seller [I]
-# df_transactions[, fi_i := mean(transaction_volume), by = c("year", "id_seller")]
-# df_transactions[, fi_iw := weighted.mean(transaction_volume, w = transaction_value),  by = c("year", "id_seller")] # weighted mean
-# # Value Intensity by seller [I]
-# df_transactions[, vi_i := mean(transaction_value), by = c("year", "id_seller")]
-# df_transactions[, vi_iw := weighted.mean(transaction_value, w = transaction_volume),  by = c("year", "id_seller")] # weighted mean
-
-# df_transactions_all <- copy(df_transactions)
-# df_transactions <- df_transactions[year==2008]
-# 
-# 
-# # Create sparse matrices for transaction values and frequencies
-# id_firm <- sort(unique(c(df_transactions$id_seller, df_transactions$id_buyer)))
-# i <- match(df_transactions$id_seller, id_firm)
-# j <- match(df_transactions$id_buyer,  id_firm)
-# mat_V <- sparseMatrix(i    = i,
-#                       j    = j,
-#                       x    = df_transactions$transaction_value,
-#                       dims = c(length(id_firm),
-#                                length(id_firm)),
-#                       dimnames = list(id_firm,id_firm))
-# mat_F <- sparseMatrix(i    = i,
-#                       j    = j,
-#                       x    = df_transactions$transaction_volume,
-#                       dims = c(length(id_firm),
-#                                length(id_firm)),
-#                       dimnames = list(id_firm,id_firm))
-# 
-# # Create sparse matrices for sector belonging of firms
-# id_sectors <- levels(factor(df_firm_info$isic_division)) # 60 because no firm in sectors P96, P97
-# df_sectors <- df_firm_info[id_sri %in% id_firm] # by construction all firms will be listed since I excluded missing-sector firms
-# i <- match(df_sectors$id_sri, id_firm)
-# j <- match(df_sectors$isic_division, id_sectors)
-# mat_S <- sparseMatrix(i    = i,
-#                       j    = j,
-#                       x    = 1,
-#                       dims = c(length(id_firm),
-#                                length(id_sectors)),
-#                       dimnames = list(id_firm,id_sectors))
-# 
-# 
-# dim(mat_V)
-# dim(mat_S)
-# 
-# sales_by_buyer_sector      =   mat_V  %*% mat_S # matrix of sales     by buyer  sector
-# purchases_by_seller_sector = t(mat_V) %*% mat_S # matrix of purchases by seller sector
-# 
-# 
-# summary <- df_transactions[, .(
-#     var = sum(transaction_value, na.rm = TRUE)
-# ), by = .(id_buyer, seller_sec)]
-# setorder(summary, id_buyer, seller_sec)
-# head(summary)
-# purchases_by_seller_sector["1","A01"]
-# purchases_by_seller_sector["2","D22"]
-# purchases_by_seller_sector["2","D24"]
-# purchases_by_seller_sector["2","D32"]
-# dim(purchases_by_seller_sector)
-# 
-# 
-# 
-# v_wsi_ij = mat_V   transaction_value/v_sec_buy
-# 
-# 
-# # Step 2: Construct a matrix with matching dimensions for division
-# # Each column will represent the corresponding sector total for each buyer
-# # buyer_sector_total <- mat_S %*% t(purchases_by_seller_sector)  # Total purchases by buyer for each sector
-# 
-# # Step 1: Calculate purchases by buyer-sector using a loop to avoid large intermediate matrices
-# buyer_sector_total <- Matrix(0, nrow = nrow(mat_V), ncol = ncol(mat_V))  # initialize empty sparse matrix
-# 
-# # Define a chunk size for iteration
-# chunk_size <- 1000  # Adjust based on available memory and performance needs
-# 
-# # Loop through sectors in chunks to calculate buyer_sector_total
-# for (i in seq(1, ncol(purchases_by_seller_sector), by = chunk_size)) {
-#     # Get the current chunk of sectors
-#     chunk <- seq(i, min(i + chunk_size - 1, ncol(purchases_by_seller_sector)))
-#     
-#     # Update the buyer_sector_total for the current chunk
-#     buyer_sector_total <- buyer_sector_total + mat_S[, chunk] %*% t(purchases_by_seller_sector[, chunk])
-# }
-# 
-# 
-# # Step 3: Compute v_wsi_ij
-# v_wsi_ij <- mat_V / buyer_sector_total  # Division to get the ratio of transaction value to total sector
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# 
-# # Compute value and frequency by sector
-# v_sec_buy_sparse <- rowSums(values_sparse, na.rm = TRUE)
-# f_sec_buy_sparse <- rowSums(volumes_sparse, na.rm = TRUE)
-# 
-# # Compute value and frequency by buyer
-# v_all_buy_sparse <- rep(sum(df_transactions$transaction_value, na.rm = TRUE), length(v_sec_buy_sparse))
-# f_all_buy_sparse <- rep(sum(df_transactions$transaction_volume, na.rm = TRUE), length(f_sec_buy_sparse))
-# 
-# # Calculate derived metrics
-# v_wsi_ij <- values_sparse / v_sec_buy_sparse
-# v_bsi_kj <- v_sec_buy_sparse / v_all_buy_sparse
-# v_bi_ij <- v_wsi_ij * v_bsi_kj
-# 
-# f_wsi_ij <- volumes_sparse / f_sec_buy_sparse
-# f_bsi_kj <- f_sec_buy_sparse / f_all_buy_sparse
-# f_bi_ij <- f_wsi_ij * f_bsi_kj
-# 
-# # Optionally, convert back to data.table or another desired format for further analysis
-# # The conversion from sparse matrices to data.table can be done based on the non-zero indices of sparse matrices
-# result_data <- data.table(
-#     id_buyer = rep(rownames(v_wsi_ij), ncol(v_wsi_ij)),
-#     seller_sec = rep(colnames(v_wsi_ij), each = nrow(v_wsi_ij)),
-#     v_wsi_ij = as.vector(v_wsi_ij),
-#     v_bsi_kj = as.vector(v_bsi_kj),
-#     v_bi_ij = as.vector(v_bi_ij),
-#     f_wsi_ij = as.vector(f_wsi_ij),
-#     f_bsi_kj = as.vector(f_bsi_kj),
-#     f_bi_ij = as.vector(f_bi_ij)
-# )
-# 
-# 
-# 
-# 
-# # Let's do per year, start with 2008 as test
-# values <- df_transactions[year==2008]
-# 
-# # Create matrix of transactions Z (sellers on rows, buyers on columns)
-# id_firm <- sort(unique(c(values$id_seller, values$id_buyer)))
-# i <- match(values$id_seller, id_firm)
-# j <- match(values$id_buyer,  id_firm)
-# Z <- sparseMatrix(i    = i,
-#                   j    = j,
-#                   x    = values$transaction_value,
-#                   dims = c(length(id_firm),
-#                            length(id_firm)))
-# 
-# # Create matrices for sector identifiers
-
-# Value of purchases per buyer & buyer and seller sector
-df_transactions[, v_sec_buy := sum(transaction_value), by = c("year", "id_buyer", "seller_sec")]
-df_transactions[, v_all_buy := sum(transaction_value), by = c("year", "id_buyer")]
-
-# Frequency of purchases per buyer & buyer and seller sector
+# Value/Frequency of purchases per buyer & buyer and seller sector
+df_transactions[, v_sec_buy := sum(transaction_value),  by = c("year", "id_buyer", "seller_sec")]
+df_transactions[, v_all_buy := sum(transaction_value),  by = c("year", "id_buyer")]
 df_transactions[, f_sec_buy := sum(transaction_volume), by = c("year", "id_buyer", "seller_sec")]
 df_transactions[, f_all_buy := sum(transaction_volume), by = c("year", "id_buyer")]
 
@@ -288,38 +67,132 @@ df_transactions[, bfi_ij  := wsfi_ij*bsfi_kj]
 
 # Compute actual buyers vs. potential buyers
 df_transactions[, act_n_buyers  := length(id_buyer), by = c("year", "id_seller")]
-potential <- dcast(data = df_transactions,
+potential <- dcast(data = unique(df_transactions[, .(year, seller_sec, id_buyer)]),
                    formula = year + seller_sec ~.,
                    fun = length, 
                    value.var="id_buyer")
 setnames(potential, ".", "pot_n_buyers")
 df_transactions <- merge(df_transactions, potential, by = c("year", "seller_sec"), all.x = T)
+rm(potential)
 
 # Take averages by seller [I] (conditional, conditional (weighted), and unconditional) - Note that unconditional weighted cannot exist, because all v_wsi_ij=0 would have weight 0, it just reverts to conditional weighted
 df_transactions[, wsvi_i_c := sum(wsvi_ij)/act_n_buyers,                             by = c("year", "id_seller")] # conditional on selling (actual buyers only) - unweighted
 df_transactions[, wsvi_i_w := sum(wsvi_ij*transaction_value)/sum(transaction_value), by = c("year", "id_seller")] # conditional on selling (actual buyers only) - weighted
 df_transactions[, wsvi_i_u := sum(wsvi_ij)/pot_n_buyers,                             by = c("year", "id_seller")] # unconditional (all potential buyers) - unweighted
 
+df_transactions[, bvi_i_c := sum(bvi_ij)/act_n_buyers,                             by = c("year", "id_seller")] # conditional on selling (actual buyers only) - unweighted
+df_transactions[, bvi_i_w := sum(bvi_ij*transaction_value)/sum(transaction_value), by = c("year", "id_seller")] # conditional on selling (actual buyers only) - weighted
+df_transactions[, bvi_i_u := sum(bvi_ij)/pot_n_buyers,                             by = c("year", "id_seller")] # unconditional (all potential buyers) - unweighted
 
+df_transactions[, wsfi_i_c := sum(wsfi_ij)/act_n_buyers,                               by = c("year", "id_seller")] # conditional on selling (actual buyers only) - unweighted
+df_transactions[, wsfi_i_w := sum(wsfi_ij*transaction_volume)/sum(transaction_volume), by = c("year", "id_seller")] # conditional on selling (actual buyers only) - weighted
+df_transactions[, wsfi_i_u := sum(wsfi_ij)/pot_n_buyers,                               by = c("year", "id_seller")] # unconditional (all potential buyers) - unweighted
 
-df_transactions[, v_bi_i   := mean(v_bi_ij),  by = c("year", "id_seller")]
-df_transactions[, v_bi_iw  := weighted.mean(v_bi_ij, w = transaction_value),  by = c("year", "id_seller")] # weighted mean
-df_transactions[, f_wsi_i  := mean(f_wsi_ij), by = c("year", "id_seller")]
-df_transactions[, f_wsi_iw := weighted.mean(f_wsi_ij, w = transaction_volume), by = c("year", "id_seller")] # weighted mean
-df_transactions[, f_bi_i   := mean(f_bi_ij),  by = c("year", "id_seller")]
-df_transactions[, f_bi_iw  := weighted.mean(f_bi_ij, w = transaction_volume),  by = c("year", "id_seller")] # weighted mean
+df_transactions[, bfi_i_c := sum(bfi_ij)/act_n_buyers,                               by = c("year", "id_seller")] # conditional on selling (actual buyers only) - unweighted
+df_transactions[, bfi_i_w := sum(bfi_ij*transaction_volume)/sum(transaction_volume), by = c("year", "id_seller")] # conditional on selling (actual buyers only) - weighted
+df_transactions[, bfi_i_u := sum(bfi_ij)/pot_n_buyers,                               by = c("year", "id_seller")] # unconditional (all potential buyers) - unweighted
 
-# Match transactions with their opposite direction
+# Seller Reciprocity (first match transactions with their opposite direction)
 reciprocity <- df_transactions[, .(year, id_seller, id_buyer, transaction_value)]
 reciprocity_reversed <- reciprocity[, .(year, id_seller=id_buyer, id_buyer=id_seller, transaction_value)]
 reciprocity <- merge(reciprocity, reciprocity_reversed, by=c("year", "id_seller", "id_buyer"), all.x = T)
 reciprocity[, bilateral_transaction := transaction_value.x + transaction_value.y] # will be NA if not bilateral (i.e. if transaction_value.y is NA)
 rm(reciprocity_reversed)
-
-# Seller Reciprocity
 reciprocity[, sr_ij := ifelse(is.na(bilateral_transaction), 0, 1)]
-reciprocity[, sr_i  := mean(sr_ij), by = c("year", "id_seller")]
-reciprocity[, sr_iw := weighted.mean(sr_ij, w = transaction_value.x),  by = c("year", "id_seller")] # weighted mean (by sales)
+df_transactions <- merge(df_transactions, reciprocity[, .(year, id_seller, id_buyer, sr_ij)], by=c("year", "id_seller", "id_buyer"))
+
+df_transactions[, sr_i_c := sum(sr_ij)/act_n_buyers,                             by = c("year", "id_seller")] # conditional on selling (actual buyers only) - unweighted
+df_transactions[, sr_i_w := sum(sr_ij*transaction_value)/sum(transaction_value), by = c("year", "id_seller")] # conditional on selling (actual buyers only) - weighted
+df_transactions[, sr_i_u := sum(sr_ij)/pot_n_buyers,                             by = c("year", "id_seller")] # unconditional (all potential buyers) - unweighted
+
+# Count average number of transactions per buyer (relation intensity)
+df_transactions[, ri_i_c := sum(transaction_volume)/act_n_buyers,                             by = c("year", "id_seller")] # conditional on selling (actual buyers only) - unweighted
+df_transactions[, ri_i_w := sum(transaction_volume*transaction_value)/sum(transaction_value), by = c("year", "id_seller")] # conditional on selling (actual buyers only) - weighted
+df_transactions[, ri_i_u := sum(transaction_volume)/pot_n_buyers,                             by = c("year", "id_seller")] # unconditional (all potential buyers) - unweighted
+
+# Compute average number of competitors
+df_transactions[, act_n_sellers := length(id_seller), by = c("year", "id_buyer", "seller_sec")]
+df_transactions[, pot_n_sellers := length(id_seller), by = c("year", "seller_sec")] # count all sellers in your sector
+
+# Count how many times you are the unique seller in your sector
+df_transactions[, us_i_c := sum( act_n_sellers==1)/act_n_buyers,                              by = c("year", "id_seller")] # conditional on selling (actual buyers only) - unweighted => essentially share of buyers for which you are the unique seller in your sector
+df_transactions[, us_i_w := sum((act_n_sellers==1)*transaction_value)/sum(transaction_value), by = c("year", "id_seller")] # conditional on selling (actual buyers only) - weighted
+df_transactions[, us_i_u := sum( act_n_sellers==1)/pot_n_buyers,                              by = c("year", "id_seller")] # unconditional (all potential buyers) - unweighted
+
+# Define competition intensity
+df_transactions[, n_sellers := act_n_sellers/pot_n_sellers] # this will limit the value between 0 and 1
+df_transactions[, ci_i_c := sum(n_sellers)/act_n_buyers,                     by = c("year", "id_seller")] # competition intensity conditional
+df_transactions[, ci_i_w := sum(n_sellers*transaction_value)/act_n_buyers,,  by = c("year", "id_seller")] # competition intensity weighted
+
+# Check how many time you often you sell to your own province (local orientation)
+df_transactions[, local := seller_province==buyer_province]
+df_transactions[, lo_i_c := sum( local==1)/act_n_buyers,                              by = c("year", "id_seller")] # conditional on selling (actual buyers only) - unweighted => essentially share of buyers that are in your own province
+df_transactions[, lo_i_w := sum((local==1)*transaction_value)/sum(transaction_value), by = c("year", "id_seller")] # conditional on selling (actual buyers only) - weighted
+
+# Check how many time you often you sell to your own sector (horizontal orientation)
+df_transactions[, horizontal := seller_province==buyer_province]
+df_transactions[, ho_i_c := sum( horizontal==1)/act_n_buyers,                              by = c("year", "id_seller")] # conditional on selling (actual buyers only) - unweighted => essentially share of buyers that are in your own sector
+df_transactions[, ho_i_w := sum((horizontal==1)*transaction_value)/sum(transaction_value), by = c("year", "id_seller")] # conditional on selling (actual buyers only) - weighted
+
+# Count number of sectors you serve (keep absolute so that interpretation is easy)
+buyers_sec <- dcast(data = unique(df_transactions[, .(year, buyer_sec, id_seller)]),
+                    formula = year + id_seller ~.,
+                    fun = length, 
+                    value.var="buyer_sec")
+setnames(buyers_sec, ".", "act_n_sectors")
+df_transactions <- merge(df_transactions, buyers_sec, by = c("year", "id_seller"), all.x = T)
+rm(buyers_sec)
+
+# Count to how many different provinces a sellers sells to
+buyers_prov <- dcast(data = unique(df_transactions[, .(year, buyer_province, id_seller)]),
+                     formula = year + id_seller ~.,
+                     fun = length, 
+                     value.var="buyer_province")
+setnames(buyers_prov, ".", "act_n_provinces")
+df_transactions <- merge(df_transactions, buyers_prov, by = c("year", "id_seller"), all.x = T)
+rm(buyers_prov)
+
+# # INTERESTING CONCEPT, COME BACK TO IT
+#
+# Note that after a point the vectors are extremely high correlated (especially at the top)
+#
+# > cor(KC10$kc_i,KC3$kc_i, method="spearman")
+# [1] 0.9999999
+# > cor(KC10$kc_i,KC2$kc_i, method="spearman")
+# [1] 0.9999972
+# > cor(KC10$kc_i,KC$kc_i, method="spearman")
+# [1] 0.9998437
+# 
+# # Create matrix of transactions Z (sellers on rows, buyers on columns)
+#     id_firm <- sort(unique(c(df_transactions[year==2008]$id_seller, df_transactions[year==2008]$id_buyer)))
+#     i <- match(df_transactions[year==2008]$id_seller, id_firm)
+#     j <- match(df_transactions[year==2008]$id_buyer,  id_firm)
+#     Z <- sparseMatrix(i    = i,
+#                       j    = j,
+#                       x    = df_transactions[year==2008]$transaction_value,
+#                       dims = c(length(id_firm),
+#                                length(id_firm)))
+# 
+#     # Create adjacency matrix A by creating cost shares
+#     cost <- colSums(Z)
+#     diag_inv_C <- .sparseDiagonal(n = length(cost),
+#                                   x = ifelse(cost==0, 0, 1/cost))
+#     A <- Z %*% diag_inv_C
+#     
+#     # Vector of initial VSWI_i
+#     vector = data.table(id_seller = id_firm)
+#     vector <- merge(vector, unique(df_transactions[year==2008, .(id_seller, wsvi_i_c)]), all.x = T)
+#     vector[ is.na(wsvi_i_c), wsvi_i_c := 0]
+# 
+#     # Katz Centrality
+#     alpha = 1 # attenuation factor
+#     d = 10 # number of steps to approximate inverse (too much memory required)
+#     KC10 <- data.table(year      = 2008,
+#                      id_seller = id_firm,
+#                      kc_i      = as.vector(leontief_degree(l = alpha*A,
+#                                                            m = vector$wsvi_i_c,
+#                                                            degree = 10*d)))
+
 
 # # Iterate over years to construct adjacency matrices
 # KC_dt <- data.table()
@@ -352,39 +225,30 @@ reciprocity[, sr_iw := weighted.mean(sr_ij, w = transaction_value.x),  by = c("y
 #                                                            degree = d)))
 #     KC_dt <- rbind(KC_dt, KC)
 # }
+# df_transactions <- merge(df_transactions, KC_dt, by=c("year", "id_seller"), all.x=T)
 
-# Combine all metrics in a single table with all sellers (must have sector info)
-network_metrics <- unique(df_transactions[!is.na(seller_sec), .(year, id_seller, seller_sec)])
+
+
+
+#///////////////////////////////////////////////////////////////////////////////
+#----               3 - COLLECT SELLER-LEVEL METRICS AND SAVE               ----
+#///////////////////////////////////////////////////////////////////////////////
+
+# Combine all metrics in a single table with all unique sellers
+network_metrics <- unique(df_transactions[, .(year, id_seller, seller_sec)])
 network_metrics <- merge(network_metrics, 
-                         unique(df_transactions[, .(year, id_seller, v_wsi_i, v_wsi_iw, v_bi_i, v_bi_iw, f_wsi_i, f_wsi_iw, f_bi_i, f_bi_iw)]), 
-                         by=c("year", "id_seller"), all.x=T)
-network_metrics <- merge(network_metrics, 
-                         unique(reciprocity[, .(year, id_seller, sr_i, sr_iw)]), 
-                         by=c("year", "id_seller"), all.x=T)
-network_metrics <- merge(network_metrics, 
-                         unique(KC_dt[, .(year, id_seller, kc_i)]), 
-                         by=c("year", "id_seller"), all.x=T)
+                         unique(df_transactions[, .(year, id_seller, 
+                                                    act_n_buyers, pot_n_buyers, act_n_sectors, act_n_provinces,
+                                                    wsvi_i_c, wsvi_i_w, wsvi_i_u, 
+                                                    bvi_i_c,  bvi_i_w,  bvi_i_u, 
+                                                    wsfi_i_c, wsfi_i_w, wsfi_i_u, 
+                                                    bfi_i_c,  bfi_i_w,  bfi_i_u, 
+                                                    us_i_c,   us_i_w,   us_i_u,
+                                                    sr_i_c,   sr_i_w,   sr_i_u,
+                                                    ri_i_c,   ri_i_w,   ri_i_u,
+                                                    ci_i_c,   ci_i_w,
+                                                    lo_i_c,   lo_i_w,
+                                                    ho_i_c,   ho_i_w)]))
 
 # Store file containing network metrics
 save(network_metrics, file = paste0(pathEst,'output/network_metrics.Rdata'))
-
-
-
-
-# Get some summary statistics on transactions for sellers
-distinct <- function(x) {
-    return(length(unique(x)))    
-}
-sum_stats_sellers <- dcast.data.table(df_transactions,
-                                      year + id_seller + seller_sec ~.,
-                                      fun = list(length, distinct, sum, sum),
-                                      value.var=list("id_buyer","buyer_sec","transaction_volume","transaction_value"))
-setnames(sum_stats_sellers, "id_seller", "id_sri")
-sum_stats_sellers <- merge(sum_stats_sellers, unique(df_transactions[,.(year,id_sri=id_buyer,one=1)]), by=c("year","id_sri"),all.x=T)
-sum_stats_sellers[is.na(one), one := 0]
-setnames(sum_stats_sellers, 
-         c("id_buyer_length", "buyer_sec_distinct", "transaction_volume_sum", "transaction_value_sum","one"),
-         c("unique_buyers",   "unique_industries",  "trans_freq",             "trans_val",            "also_buyer"))
-sum_stats_sellers[, avg_trans_amount := trans_val/trans_freq]
-save(sum_stats_sellers, file = paste0(pathEst,'output/sum_stats_sellers.Rdata'))
-

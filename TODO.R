@@ -1,6 +1,6 @@
 # TO DO FROM ELIE:
 #     
-# 
+#     - Remove samples part, simply move into beginning of respective estimation sections
 #     
 #     - Aggregate at e.g. deciles of markups per sectors, create network, check measures
 # 
@@ -30,23 +30,16 @@
 # 
 #     
 #     - Create vars: 
-#         -> against how many sellers are you competing on average: similar to WSI but
+#         -> against how many sellers are you competing on average: similar to WSI but -> DONE
 #         -> stickiness of relationships over time
-#         -> variables with nr.sellers and nr.buyers
-#         -> share of buyers that only buy from you
-#         -> transaction per buyers, or the other way around
-#         -> changing definitions of WSI to include all potentinal buyers => assign zero!
+#         -> variables with nr.sellers and nr.buyers -> DONE
+#         -> share of buyers that only buy from you -> DONE
+#         -> transaction per buyers, or the other way around -> DONE
+#         -> changing definitions of WSI to include all potentinal buyers => assign zero! -> DONE
 # 
 #     - Other stuff: 
 #         -> When saying "well known phenomenon" provide references
-#         -> Define formulas in words before moving on
-#         -> Clarify that entites are firms as tax entities but could be related (same ownership e.g.) -> investigate further research
-#         -> Include in conclusion what you would have done if you had more time 
-#               (e.g. point just above with ownership talk about possibility on 
-#               incorporating geography in market competition definitions. Not 
-#               too big of a deal maybe due to looking at rather bigger firms, 
-#               but could still be relevant)
-#     
+
 
 
 # DONE
