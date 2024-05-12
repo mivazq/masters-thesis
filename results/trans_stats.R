@@ -24,6 +24,11 @@ load(file = paste0(pathEst, "output/firm_markups_V.Rdata"))
 df_transactions <- merge.data.table(df_transactions, df_firm_info[,.(id_sri, buyer_sec  = isic_division)], by.x="id_buyer",  by.y="id_sri", all.x=T)
 df_transactions <- merge.data.table(df_transactions, df_firm_info[,.(id_sri, seller_sec = isic_division)], by.x="id_seller", by.y="id_sri", all.x=T)
 
+# Match
+df_transactions <- merge.data.table(df_transactions, markups_V[,.(id_seller=id, year, mu = ifelse(is.na(mu_v_dlw_cd),0,1))], by=c("id_seller","year"), all.x=T)
+sum(df_transactions[mu==1]$transaction_value)/sum(df_transactions$transaction_value)
+sum(df_transactions[mu==1]$transaction_volume)/sum(df_transactions$transaction_volume)
+
 # Exclude firms for which no sector information is available (mostly due to sellers)
 cat("There are", 
     fp(nrow(df_transactions)),"transactions,", 
@@ -41,7 +46,29 @@ cat("There are",
     "The total value across all transactions is",fp(sum(df_transactions$transaction_value)),
     "and the total number of unique transactions (frequencies) is",fp(sum(df_transactions$transaction_volume)))
 
+sum(df_transactions[mu==1]$transaction_value)/sum(df_transactions$transaction_value)
+sum(df_transactions[mu==1]$transaction_volume)/sum(df_transactions$transaction_volume)
 
+# Check how much each industry buys as share of total (in terms of value and frequency)
+sales_by_sector <- dcast(data      = df_transactions,
+                         formula   = seller_sec~., 
+                         fun       = list(sum,sum,uniqueN),
+                         value.var = list("transaction_value","transaction_volume","id_seller"))
+purchases_by_sector <- dcast(data      = df_transactions,
+                             formula   = buyer_sec~., 
+                             fun       = list(sum,sum,uniqueN),
+                             value.var = list("transaction_value","transaction_volume","id_buyer"))
+sales_by_sector[, avg_value_per_trans := transaction_value_sum/transaction_volume_sum]
+sales_by_sector[, avg_value_per_trans_per_seller := avg_value_per_trans/id_seller_uniqueN]
+purchases_by_sector[, avg_value_per_trans := transaction_value_sum/transaction_volume_sum]
+purchases_by_sector[, avg_value_per_trans_per_buyer := avg_value_per_trans/id_buyer_uniqueN]
+markup_by_sector <- dcast(data      = markups_V,
+                          formula   = ind~., 
+                          fun       = list(median,mean),
+                          na.rm     = T,
+                          value.var = "mu_v_dlw_cd")
+markup_by_sector <- merge(markup_by_sector, sales_by_sector[,.(ind=seller_sec, avg_val=avg_value_per_trans_per_seller)], all.y = T)
+markup_by_sector <- merge(markup_by_sector, purchases_by_sector[,.(ind=buyer_sec, avg_val2=avg_value_per_trans_per_buyer)], all.y = T)
 
 
 # Get some summary statistics on transactions for sellers
@@ -50,14 +77,14 @@ distinct <- function(x) {
 }
 sum_stats_sellers <- dcast.data.table(df_transactions,
                                       year + id_seller + seller_sec ~.,
-                                      fun = list(length, distinct, sum, sum),
+                                      fun = list(length, uniqueN, sum, sum),
                                       value.var=list("id_buyer","buyer_sec","transaction_volume","transaction_value"))
 setnames(sum_stats_sellers, "id_seller", "id_sri")
 sum_stats_sellers <- merge(sum_stats_sellers, unique(df_transactions[,.(year,id_sri=id_buyer,one=1)]), by=c("year","id_sri"),all.x=T)
 sum_stats_sellers[is.na(one), one := 0]
 setnames(sum_stats_sellers, 
-         c("id_buyer_length", "buyer_sec_distinct", "transaction_volume_sum", "transaction_value_sum","one"),
-         c("unique_buyers",   "unique_industries",  "trans_freq",             "trans_val",            "also_buyer"))
+         c("id_buyer_length", "buyer_sec_uniqueN", "transaction_volume_sum", "transaction_value_sum","one"),
+         c("unique_buyers",   "unique_industries", "trans_freq",             "trans_val",            "also_buyer"))
 sum_stats_sellers[, avg_trans_amount := trans_val/trans_freq]
 save(sum_stats_sellers, file = paste0(pathEst,'output/sum_stats_sellers.Rdata'))
 

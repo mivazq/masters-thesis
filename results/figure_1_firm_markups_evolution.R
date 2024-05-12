@@ -58,7 +58,7 @@ markups[, delta_dcl_mu := dcl_mu - dcl_mu_lag]
 markups[, prev_year := year-1]
 
 # Create compact dataset for plotting
-compact <- dcast(markups[input=="v" & pf=="cd" & !is.na(dcl_mu) & !is.na(dcl_mu_lag)],
+compact <- dcast(markups[input=="v" & pf=="tl" & !is.na(dcl_mu) & !is.na(dcl_mu_lag)],
                  prev_year + year + dcl_mu_lag + dcl_mu ~.,
                  fun = length,
                  value.var="dcl_mu")
@@ -68,21 +68,47 @@ setnames(compact, ".", "size")
 compact[, sum_size := sum(size), by="year"]
 compact[, size := size/sum_size]
 
+# Aggregate all years by taking means since there is very little variation across years
+compact <- dcast(data=compact,
+                 formula=dcl_mu_lag + dcl_mu ~.,
+                 fun = mean,
+                 value.var="size")
+setnames(compact, ".", "size")
+
 # Plot with Line Widths Based on Count (ALL INDUSTRY GROUPS) # , labels=c("1st","2nd","3rd","4th","5th","6th","7th","8th","9th","10th")
-ggplot(compact, aes(x = prev_year, y = as.factor(dcl_mu_lag), 
-                    xend = year, yend = as.factor(dcl_mu), 
+ggplot(compact, aes(x = as.factor(dcl_mu_lag), y = as.factor(0), 
+                    xend = as.factor(dcl_mu), yend = as.factor(1), 
                     linewidth = size)) +
     geom_segment(aes(color = ifelse(dcl_mu > dcl_mu_lag, "up", 
                                     ifelse(dcl_mu < dcl_mu_lag, "down", "same"))), 
                  alpha = 1, show.legend = c(linewidth = FALSE, colour = TRUE)) +
     scale_color_manual(values = c("up" = "green", "down" = "red", "same" = "gray"), labels=c("Downwards", "No movement", "Upwards")) +
-    scale_y_discrete(breaks=1:10) +
-    scale_linewidth_continuous(range = c(0,5)) +
-    labs(x = "Year", y = "Decile\nwithin\nindustry") +
+    scale_x_discrete(breaks=1:10) + scale_y_discrete(breaks=c(0,1), labels=c(expression(italic("t-1")), expression(italic("t"))), expand = c(0.05,0.05)) +
+    scale_linewidth_continuous(range = c(1,10)) +
+    labs(x = "Decile within industry", y = "") +
     theme_bw() + 
     theme(legend.position = "bottom", text = element_text(family = "Palatino"), 
           strip.background=element_blank(), strip.text=element_text(size=20), legend.title = element_blank(),
           legend.text = element_text(size = 25, margin = margin(r = 20)), legend.key.size = unit(20, "mm"),
-          axis.text = element_text(size = 25, color = "black"), axis.title.y = element_text(angle = 0, vjust = 0.5),
-          axis.title = element_text(size = 25, color = "black"), axis.title.x = element_blank())
+          axis.text = element_text(size = 25, color = "black"), axis.title.y = element_blank(),
+          axis.title = element_text(size = 25, color = "black"), axis.text.y = element_text(hjust=0.5))
 ggsave(paste0(pathFig,sysdate,"_firmlevel_markup_movement.pdf"), width = 15, height = 10, device=cairo_pdf)
+
+# Compute some statistics for the text
+compact_stats <- copy(compact)
+compact_stats[, dw_more_deciles := dcl_mu <  dcl_mu_lag-1]
+compact_stats[, dw_one_decile   := dcl_mu == dcl_mu_lag-1]
+compact_stats[, same            := dcl_mu == dcl_mu_lag]
+compact_stats[, up_one_decile   := dcl_mu == dcl_mu_lag+1]
+compact_stats[, up_more_deciles := dcl_mu >  dcl_mu_lag+1]
+unique(rowSums(compact_stats[,.SD,.SDcols = c("dw_more_deciles", "dw_one_decile", "same", "up_one_decile", "up_more_deciles")]))==1 # SHOULD BE TRUE (ONLY ONE CATEGORY ALLOWED)
+
+# Multiply size by dummy variables to get the number in the correct row
+compact_stats[, c("dw_more_deciles", "dw_one_decile", "same", "up_one_decile", "up_more_deciles") := 
+                  lapply(.SD, function (x) x*size), .SDcols = c("dw_more_deciles", "dw_one_decile", "same", "up_one_decile", "up_more_deciles")]
+
+# Share averaged over the years
+compact_stats <- dcast(data=compact_stats,
+                       formula=.~ .,
+                       fun = sum,
+                       value.var=c("dw_more_deciles", "dw_one_decile", "same", "up_one_decile", "up_more_deciles"))

@@ -14,39 +14,144 @@ source('~/data/transactions_ecuador/3_mivazq/Masters_Thesis/setup.R')
 #----                       1 - LOAD AND PREPARE DATA                       ----
 #///////////////////////////////////////////////////////////////////////////////
 
-# Load data
-load(file = paste0(pathEst, "output/firm_markups_V.Rdata"))
-load(file = paste0(pathEst, "output/firm_markups_ML.Rdata"))
-load(file = paste0(pathEst, "output/network_metrics.Rdata"))
+# Load data and merge
+load(file=paste0(pathEst, "output/firm_markups_V.Rdata"))
+load(file=paste0(pathEst, "output/firm_markups_ML.Rdata"))
 markups <- merge(markups_ML, markups_V, by=c("id","year","ind"))
-markups <- markups[!is.na(V)] # exclude non-active observations
 rm(markups_ML, markups_V)
+load(file=paste0(pathEst, "output/network_metrics.Rdata"))
 
 # Generate variable for industry group
 markups[, ind_group := ifelse(substr(ind,1,1) %in% c("A","B","C","D","E","F"), "AF", ifelse(substr(ind,1,1)=="G", "G", "HQ"))]
 
-# Fix markups of industries H55 AND O91
-medgroup = median(markups[ind_group=="HQ" & ind %nin% c("H55","O91") & input=="v" & pf=="cd"]$mu) # median for industry group H55-Q99 (excluding these two industries)
-fix_H55 = medgroup - median(markups[ind=="H55" & input=="v" & pf=="cd"]$mu) # median deviation from group median
-fix_O91 = medgroup - median(markups[ind=="O91" & input=="v" & pf=="cd"]$mu) # median deviation from group median
-markups[ind=="H55" & input=="v" & pf=="cd", mu := mu + fix_H55] # fix H55
-markups[ind=="O91" & input=="v" & pf=="cd", mu := mu + fix_O91] # fix O91
+# Drop OLS markups, L markups, and missing markups
+markups <- markups[, .SD, .SDcols = !(grep("_ols_", colnames(markups)))]
+markups <- markups[, .SD, .SDcols = !(grep("_l_", colnames(markups)))]
+markups <- markups[!is.na(mu_v_dlw_cd)] # exclude missing obs
+
+# Create dummy for firm size expansion (based on cost)
+markups[, V_lag := shift(V), by="id"]
+markups[, firm_size_expansion := ifelse(V>V_lag, 1, 0)]
 
 
+# Since we are only focused on are main specification, drop all other variables
+markups[, c("mu_m_dlw_cd", "mu_m_dlw_tl", "mu_v_dlw_tl", "M", "L", "V", "V_lag", "alpha_v") := NULL]
+setnames(markups, "mu_v_dlw_cd", "mu")
+
+                    # Fix markups of industries H55 and O91 in baseline spec
+                    medgroup = median(markups[ind_group=="HQ" & ind %nin% c("H55","O91")]$mu) # median for industry group H55-Q99 (excluding these two industries)
+                    fix_H55 = medgroup - median(markups[ind=="H55"]$mu) # median deviation from group median
+                    fix_O91 = medgroup - median(markups[ind=="O91"]$mu) # median deviation from group median
+                    markups[ind=="H55", mu := mu + fix_H55] # fix H55
+                    markups[ind=="O91", mu := mu + fix_O91] # fix O91
 
 # Match markups estimation sample and network sample
 match <- merge(markups, network_metrics, by.x=c("id","year","ind"), by.y=c("id_seller","year","seller_sec"))
 
-# Adjust markups and network measure to be percent deviations from mean/median, for ease of interpretation
-# match[, wsi_i  := (wsi_i  - mean(wsi_i))/mean(wsi_i),   by = c("year", "ind")]
-# match[, wsi_iw := (wsi_iw - mean(wsi_iw))/mean(wsi_iw), by = c("year", "ind")]
-# match[, ti_i   := (ti_i   - mean(ti_i))/mean(ti_i),     by = c("year", "ind")]
-# match[, ti_iw  := (ti_iw  - mean(ti_iw))/mean(ti_iw),   by = c("year", "ind")]
-# match[, sr_i   := (sr_i   - mean(sr_i))/mean(sr_i),     by = c("year", "ind")]
-# match[, sr_iw  := (sr_iw  - mean(sr_iw))/mean(sr_iw),   by = c("year", "ind")]
-# match[, ctv_i  := (ctv_i  - mean(ctv_i))/mean(ctv_i),   by = c("year", "ind")]
-# match[, kc_i   := (kc_i   - mean(kc_i))/mean(kc_i),     by = c("year", "ind")]
-# match[, mu_v_dlw_cd  := mu_v_dlw_cd  - mean(mu_v_dlw_cd),  by = c("year", "ind")]
+# Calculate IQR for network metrics
+IQR <- dcast(data = match[,.SD,.SDcols = !c("id", "year", "ind", "ind_group")],
+             formula = .~.,
+             fun = IQR,
+             value.var=colnames(match[,.SD,.SDcols = !c("id", "year", "ind", "ind_group")]))
+
+
+#///////////////////////////////////////////////////////////////////////////////
+#----                 2 - RUN REGRESSIONS ON IMPORTANCE                ----
+#///////////////////////////////////////////////////////////////////////////////
+
+# Run regressions for network variables relating to idea of diversification
+reg_imp_1 <- feols(mu ~ wsvi_i_c | ind + year, data=match, panel.id = c("id","year"), cluster = "id")
+reg_imp_2 <- feols(mu ~ wsvi_i_w | ind + year, data=match, panel.id = c("id","year"), cluster = "id")
+reg_imp_3 <- feols(mu ~ bvi_i_c  | ind + year, data=match, panel.id = c("id","year"), cluster = "id")
+reg_imp_4 <- feols(mu ~ bvi_i_w  | ind + year, data=match, panel.id = c("id","year"), cluster = "id")
+# reg_imp_5 <- feols(mu ~ wsfi_i_c | ind + year, data=match, panel.id = c("id","year"), cluster = "id")
+# reg_imp_6 <- feols(mu ~ wsfi_i_w | ind + year, data=match, panel.id = c("id","year"), cluster = "id")
+# reg_imp_7 <- feols(mu ~ bfi_i_c  | ind + year, data=match, panel.id = c("id","year"), cluster = "id")
+# reg_imp_8 <- feols(mu ~ bfi_i_w  | ind + year, data=match, panel.id = c("id","year"), cluster = "id")
+reg_imp_5 <- feols(mu ~ wsvi_i_u | ind + year, data=match, panel.id = c("id","year"), cluster = "id")
+reg_imp_6 <- feols(mu ~ bvi_i_u  | ind + year, data=match, panel.id = c("id","year"), cluster = "id")
+reg_imp_7 <- feols(mu ~ wsvi_i_c | ind + year, data=match, weights = match$seller_weight, panel.id = c("id","year"), cluster = "id")
+reg_imp_8 <- feols(mu ~ bvi_i_c  | ind + year, data=match, weights = match$seller_weight, panel.id = c("id","year"), cluster = "id")
+
+sink(paste0(pathTab,sysdate,"_table_6_regression_results_importance.tex"))
+cat("\\begin{table}[!htbp]\\centering \n")
+cat("\\caption{\\label{tab:EstimatedResults_Importance} Regression Results Importance} \n")
+cat("\\begin{adjustbox}{width=\\columnwidth,center} \n")
+cat("\\begin{tabular}{lcccccccc}")
+cat("\\toprule \n")
+cat(" & (1) & (2) & (3) & (4) & (5) & (6) & (7) & (8) \\\\ \n")
+cat("\\addlinespace \\hline \\addlinespace \n")
+cat("Within Sector Value Importance (\\%)     & ", fp(reg_imp_1$coefficients, 4), sign_stars(reg_imp_1$coeftable[, 4])," & ",fp(reg_imp_2$coefficients, 4), sign_stars(reg_imp_2$coeftable[, 4])," & & & & & & \\\\ \n")
+cat("                                         & ", fpt(reg_imp_1$se, 4)," & ",fpt(reg_imp_2$se, 4)," & & & & & & \\\\ \n")
+cat("Broad Value Importance (\\%)             & & & ", fp(reg_imp_3$coefficients, 4), sign_stars(reg_imp_3$coeftable[, 4])," & ",fp(reg_imp_4$coefficients, 4), sign_stars(reg_imp_4$coeftable[, 4])," & & & & \\\\ \n")
+cat("                                         & & & ", fpt(reg_imp_3$se, 4)," & ",fpt(reg_imp_4$se, 4)," & & & & \\\\ \n")
+cat("Within Sector Frequency Importance (\\%) & & & & & ", fp(reg_imp_5$coefficients, 4), sign_stars(reg_imp_5$coeftable[, 4])," & ",fp(reg_imp_6$coefficients, 4), sign_stars(reg_imp_6$coeftable[, 4])," & & \\\\ \n")
+cat("                                         & & & & & ", fpt(reg_imp_5$se, 4)," & ",fpt(reg_imp_6$se, 4)," & & \\\\ \n")
+cat("Broad Frequency Importance (\\%)         & & & & & & & ", fp(reg_imp_7$coefficients, 4), sign_stars(reg_imp_7$coeftable[, 4])," & ",fp(reg_imp_8$coefficients, 4), sign_stars(reg_imp_8$coeftable[, 4])," \\\\ \n")
+cat("                                         & & & & & & & ", fpt(reg_imp_7$se, 4)," & ",fpt(reg_imp_8$se, 4)," \\\\ \n")
+cat("\\addlinespace \\hline \\addlinespace \n")
+# cat("Standard deviation & ",sd(match$wsi_i)," & ",sd(match$wsi_iw)," & ",sd(match$ti_i)," & ",sd(match$ti_iw)," & ",sd(match$ctv_i)," & ",sd(match$sr_i)," & ",sd(match$sr_iw)," & ",sd(match$kc_i)," \\\\ \n")
+cat("Industry FE & \\checkmark & \\checkmark & \\checkmark & \\checkmark & \\checkmark & \\checkmark & \\checkmark & \\checkmark \\\\ \n")
+cat("Year FE     & \\checkmark & \\checkmark & \\checkmark & \\checkmark & \\checkmark & \\checkmark & \\checkmark & \\checkmark \\\\ \n")
+cat(" Network metric weighted & & \\multirow{2}{*}{\\checkmark} & & \\multirow{2}{*}{\\checkmark} & & \\multirow{2}{*}{\\checkmark} & & \\multirow{2}{*}{\\checkmark} \\\\ \n")
+cat(" by transaction value    & & & & & & & & \\\\ \n")
+cat("\\addlinespace \\hline \\addlinespace \n")
+cat("IQR & ",fp(IQR$wsvi_i_c,2)," & ",fp(IQR$wsvi_i_w,2)," & ",fp(IQR$bvi_i_c,2)," & ",fp(IQR$bvi_i_w,2)," & ",fp(IQR$wsfi_i_c,2)," & ",fp(IQR$wsfi_i_w,2)," & ",fp(IQR$bfi_i_c,2)," & ",fp(IQR$bfi_i_w,2)," \\\\ \n")
+cat("Observations & ",reg_imp_1$nobs," & ",reg_imp_2$nobs," & ",reg_imp_3$nobs," & ",reg_imp_4$nobs," & ",reg_imp_5$nobs," & ",reg_imp_6$nobs," & ",reg_imp_7$nobs," & ",reg_imp_8$nobs," \\\\ \n")
+cat("\\bottomrule \n")
+cat("\\end{tabular} \n")
+cat("\\end{adjustbox} \n")
+cat("\\justify \\footnotesize \\emph{Notes:} This table reports results. Standard errors clustered at the firm-level reported in parentheses. Significance levels given by: *** p $<$ 0.001, ** p $<$ 0.01, * p $<$ 0.05. \n")
+cat("\\end{table} \n")
+sink()
+
+
+#///////////////////////////////////////////////////////////////////////////////
+#----                 2 - RUN REGRESSIONS ON DIVERSIFICATION                ----
+#///////////////////////////////////////////////////////////////////////////////
+
+# Run regressions for network variables relating to idea of diversification
+reg_div_1 <- feols(mu ~ log(act_n_buyers)    | ind + year, data=match, panel.id = c("id","year"), cluster = "id")
+reg_div_2 <- feols(mu ~ log(act_n_sectors)   | ind + year, data=match, panel.id = c("id","year"), cluster = "id")
+reg_div_3 <- feols(mu ~ log(act_n_provinces) | ind + year, data=match, panel.id = c("id","year"), cluster = "id")
+reg_div_4 <- feols(mu ~ lo_i_c               | ind + year, data=match, panel.id = c("id","year"), cluster = "id")
+reg_div_5 <- feols(mu ~ lo_i_w               | ind + year, data=match, panel.id = c("id","year"), cluster = "id")
+reg_div_6 <- feols(mu ~ ho_i_c               | ind + year, data=match, panel.id = c("id","year"), cluster = "id")
+reg_div_7 <- feols(mu ~ ho_i_w               | ind + year, data=match, panel.id = c("id","year"), cluster = "id")
+
+sink(paste0(pathTab,sysdate,"_table_6_regression_results_diversification.tex"))
+cat("\\begin{table}[!htbp]\\centering \n")
+cat("\\caption{\\label{tab:EstimatedResults_Diversification} Regression Results Diversification} \n")
+cat("\\begin{adjustbox}{width=\\columnwidth,center} \n")
+cat("\\begin{tabular}{lccccccc}")
+cat("\\toprule \n")
+cat(" & (1) & (2) & (3) & (4) & (5) & (6) & (7) \\\\ \n")
+cat("\\addlinespace \\hline \\addlinespace \n")
+cat("log(Nr. of buyers)             & ", fp(reg_div_1$coefficients, 4), sign_stars(reg_div_1$coeftable[, 4])," & & & & & & \\\\ \n")
+cat("                               & ", fpt(reg_div_1$se, 4)," & & & & & & \\\\ \n")
+cat("log(Nr. of sectors)            & & ", fp(reg_div_2$coefficients, 4), sign_stars(reg_div_2$coeftable[, 4])," & & & & & \\\\ \n")
+cat("                               & & ", fpt(reg_div_2$se, 4)," & & & & & \\\\ \n")
+cat("log(Nr. of provinces)          & & & ", fp(reg_div_3$coefficients, 4), sign_stars(reg_div_3$coeftable[, 4])," & & & & \\\\ \n")
+cat("                               & & & ", fpt(reg_div_3$se, 4)," & & & & \\\\ \n")
+cat("Buyers in other industry (\\%) & & & & ", fp(reg_div_4$coefficients, 4), sign_stars(reg_div_4$coeftable[, 4])," & ",fp(reg_div_5$coefficients, 4), sign_stars(reg_div_5$coeftable[, 4])," & & \\\\ \n")
+cat("                               & & & & ", fpt(reg_div_4$se, 4)," & ",fpt(reg_div_5$se, 4)," & & \\\\ \n")
+cat("Buyers in other province (\\%) & & & & & & ", fp(reg_div_6$coefficients, 4), sign_stars(reg_div_6$coeftable[, 4])," & ",fp(reg_div_7$coefficients, 4), sign_stars(reg_div_7$coeftable[, 4])," \\\\ \n")
+cat("                               & & & & & & ", fpt(reg_div_6$se, 4)," & ",fpt(reg_div_7$se, 4)," \\\\ \n")
+cat("\\addlinespace \\hline \\addlinespace \n")
+# cat("Standard deviation & ",sd(match$wsi_i)," & ",sd(match$wsi_iw)," & ",sd(match$ti_i)," & ",sd(match$ti_iw)," & ",sd(match$ctv_i)," & ",sd(match$sr_i)," & ",sd(match$sr_iw)," & ",sd(match$kc_i)," \\\\ \n")
+cat("Industry FE & \\checkmark & \\checkmark & \\checkmark & \\checkmark & \\checkmark & \\checkmark & \\checkmark \\\\ \n")
+cat("Year FE     & \\checkmark & \\checkmark & \\checkmark & \\checkmark & \\checkmark & \\checkmark & \\checkmark \\\\ \n")
+cat(" Network metric weighted & & & & & \\multirow{2}{*}{\\checkmark} & & \\multirow{2}{*}{\\checkmark} \\\\ \n")
+cat(" by transaction value    & & & & & & & \\\\ \n")
+cat("\\addlinespace \\hline \\addlinespace \n")
+cat("IQR & ",fp(IQR$act_n_buyers,0)," & ",fp(IQR$act_n_sectors,0)," & ",fp(IQR$act_n_provinces,0)," & ",fp(IQR$lo_i_c,2)," & ",fp(IQR$lo_i_w,2)," & ",fp(IQR$ho_i_c,2)," & ",fp(IQR$ho_i_w,2)," \\\\ \n")
+cat("Observations & ",reg_div_1$nobs," & ",reg_div_2$nobs," & ",reg_div_3$nobs," & ",reg_div_4$nobs," & ",reg_div_5$nobs," & ",reg_div_6$nobs," & ",reg_div_7$nobs," \\\\ \n")
+cat("\\bottomrule \n")
+cat("\\end{tabular} \n")
+cat("\\end{adjustbox} \n")
+cat("\\justify \\footnotesize \\emph{Notes:} This table reports results. Standard errors clustered at the firm-level reported in parentheses. Significance levels given by: *** p $<$ 0.001, ** p $<$ 0.01, * p $<$ 0.05. \n")
+cat("\\end{table} \n")
+sink()
 
 
 
@@ -55,12 +160,18 @@ match <- merge(markups, network_metrics, by.x=c("id","year","ind"), by.y=c("id_s
 
 
 
-# btwn <- fread(file = paste0(pathEst, "output/btwn.csv"))
-# match <- merge(match, btwn[, .(id_sri, year, betweenness_centrality_test = betweenness_centrality_test_x, betweenness_centrality_test2 = betweenness_centrality_test2_x, betweenness_centrality_test3)], by.x=c("id","year"), by.y=c("id_sri","year"), all.x = T)
-# 
-# feols(mu_v_dlw_cd ~ betweenness_centrality_test.x, data=match[year==2008], panel.id = c("id"), cluster = "id")
-# feols(mu_v_dlw_cd ~ betweenness_centrality_test2.x, data=match[year==2008], panel.id = c("id"), cluster = "id")
-# feols(mu_v_dlw_cd ~ betweenness_centrality_test3, data=match[year==2008], panel.id = c("id"), cluster = "id")
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -68,7 +179,7 @@ match <- merge(markups, network_metrics, by.x=c("id","year","ind"), by.y=c("id_s
 
 
 #///////////////////////////////////////////////////////////////////////////////
-#----                           1 - RUN REGRESSIONS                         ----
+#----               OLD REGS                ----
 #///////////////////////////////////////////////////////////////////////////////
 
 # Run regressions

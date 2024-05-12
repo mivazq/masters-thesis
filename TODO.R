@@ -1,6 +1,5 @@
 # TO DO FROM ELIE:
 #     
-#     - Remove samples part, simply move into beginning of respective estimation sections
 #     
 #     - Aggregate at e.g. deciles of markups per sectors, create network, check measures
 # 
@@ -9,12 +8,8 @@
 #     implies a 8pp increase in markups
 #
 #     - Check if firms not in PA export more as share of revenue?
-#     --> Maybe they are pure exporters and could be giving up productio domestically (so WSI goes down)
+#     --> Maybe they are pure exporters and could be giving up production domestically (so WSI goes down)
 #     but markup might be high because they are exporters
-# 
-#     - Add information on "Movements in Within-Industry Markup Ordering" figure: 
-#         share that stays in same decile, share that goes up by one, share that 
-#         goes down byone, share that goes up (REst), share that goes down (Rest)
 # 
 #     - Include absolute numbers when comparing sets, mention how important 
 #         intersection set is in whole economy
@@ -43,7 +38,13 @@
 
 
 # DONE
+# 
+#     - Add information on "Movements in Within-Industry Markup Ordering" figure: 
+#         share that stays in same decile, share that goes up by one, share that 
+#         goes down byone, share that goes up (REst), share that goes down (Rest)
 #     
+#     - Remove samples part, simply move into beginning of respective estimation sections
+#
 #     - Do not scale Y variable as it will remove variation in X across years
 #     
 #     - To complement plots on network metrics distributions have a table on zeros (not shown due to log scale)

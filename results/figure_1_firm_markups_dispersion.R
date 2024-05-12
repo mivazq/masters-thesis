@@ -71,7 +71,7 @@ for (i_input in c("v", "m")) {
                   expression(italic("\u03C3"["\u03BC"["it"]^"M"])))
     
     ggplot(std_mu[input==i_input], aes(x = year, y = value, color = ind_group)) +
-        geom_line(linewidth=1.5) + geom_point() +
+        geom_line(linewidth=1.5) + geom_point(size=3) +
         facet_wrap(~pf) +
         scale_color_discrete(labels = c(lgndlab1, lgndlab2, lgndlab3, lgndlab4), type = c("#f8766d","#00ba38","#619cff","#a3a500")) +
         scale_y_continuous(labels = function(x) fp(x, dig=2), limits = c(0,NA)) +
@@ -89,7 +89,7 @@ for (i_input in c("v", "m")) {
 
 # Plot evolution by production function and input (for main)
 ggplot(std_mu[input=="v" & pf=="Cobb-Douglas Production"], aes(x = year, y = value, color = ind_group)) +
-    geom_line(linewidth=1.5) + geom_point() +
+    geom_line(linewidth=1.5) + geom_point(size=3) +
     scale_color_discrete(labels = c(lgndlab1, lgndlab2, lgndlab3, lgndlab4), type = c("#f8766d","#00ba38","#619cff","#a3a500")) +
     scale_y_continuous(labels = function(x) fp(x, dig=2), limits = c(0,NA)) +
     xlab("Year") + ylab(expression(italic("\u03C3"["\u03BC"["it"]^"V"]))) +

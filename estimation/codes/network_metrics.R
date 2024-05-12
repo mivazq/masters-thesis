@@ -123,14 +123,16 @@ df_transactions[, us_i_u := sum( act_n_sellers==1)/pot_n_buyers,                
 df_transactions[, n_sellers := act_n_sellers/pot_n_sellers] # this will limit the value between 0 and 1
 df_transactions[, ci_i_c := sum(n_sellers)/act_n_buyers,                     by = c("year", "id_seller")] # competition intensity conditional
 df_transactions[, ci_i_w := sum(n_sellers*transaction_value)/act_n_buyers,,  by = c("year", "id_seller")] # competition intensity weighted
+df_transactions[, ci_i_u := sum(n_sellers)/pot_n_buyers,                     by = c("year", "id_seller")] # competition intensity conditional
+# ci_i_u is not correctly define, should somehow consider competition also for buyers with which I dont interact
 
-# Check how many time you often you sell to your own province (local orientation)
-df_transactions[, local := seller_province==buyer_province]
+# Check how many time you often you sell to NOT your own province (i.e. NOT local orientation)
+df_transactions[, local := seller_province!=buyer_province]
 df_transactions[, lo_i_c := sum( local==1)/act_n_buyers,                              by = c("year", "id_seller")] # conditional on selling (actual buyers only) - unweighted => essentially share of buyers that are in your own province
 df_transactions[, lo_i_w := sum((local==1)*transaction_value)/sum(transaction_value), by = c("year", "id_seller")] # conditional on selling (actual buyers only) - weighted
 
-# Check how many time you often you sell to your own sector (horizontal orientation)
-df_transactions[, horizontal := seller_province==buyer_province]
+# Check how many time you often you sell to NOT your own sector (i.e. NOT horizontal orientation)
+df_transactions[, horizontal := seller_sec!=buyer_sec]
 df_transactions[, ho_i_c := sum( horizontal==1)/act_n_buyers,                              by = c("year", "id_seller")] # conditional on selling (actual buyers only) - unweighted => essentially share of buyers that are in your own sector
 df_transactions[, ho_i_w := sum((horizontal==1)*transaction_value)/sum(transaction_value), by = c("year", "id_seller")] # conditional on selling (actual buyers only) - weighted
 
@@ -235,20 +237,20 @@ rm(buyers_prov)
 #///////////////////////////////////////////////////////////////////////////////
 
 # Combine all metrics in a single table with all unique sellers
-network_metrics <- unique(df_transactions[, .(year, id_seller, seller_sec)])
-network_metrics <- merge(network_metrics, 
-                         unique(df_transactions[, .(year, id_seller, 
-                                                    act_n_buyers, pot_n_buyers, act_n_sectors, act_n_provinces,
-                                                    wsvi_i_c, wsvi_i_w, wsvi_i_u, 
-                                                    bvi_i_c,  bvi_i_w,  bvi_i_u, 
-                                                    wsfi_i_c, wsfi_i_w, wsfi_i_u, 
-                                                    bfi_i_c,  bfi_i_w,  bfi_i_u, 
-                                                    us_i_c,   us_i_w,   us_i_u,
-                                                    sr_i_c,   sr_i_w,   sr_i_u,
-                                                    ri_i_c,   ri_i_w,   ri_i_u,
-                                                    ci_i_c,   ci_i_w,
-                                                    lo_i_c,   lo_i_w,
-                                                    ho_i_c,   ho_i_w)]))
+df_transactions[, seller_weight := sum(transaction_value), by=c("year", "id_seller")]
+network_metrics <- unique(df_transactions[, .(year, id_seller, seller_sec, seller_weight,
+                                              act_n_buyers, pot_n_buyers, act_n_sectors, act_n_provinces,
+                                              wsvi_i_c, wsvi_i_w, wsvi_i_u, 
+                                              bvi_i_c,  bvi_i_w,  bvi_i_u, 
+                                              wsfi_i_c, wsfi_i_w, wsfi_i_u, 
+                                              bfi_i_c,  bfi_i_w,  bfi_i_u, 
+                                              us_i_c,   us_i_w,   us_i_u,
+                                              sr_i_c,   sr_i_w,   sr_i_u,
+                                              ri_i_c,   ri_i_w,   ri_i_u,
+                                              ci_i_c,   ci_i_w,   ci_i_u,
+                                              lo_i_c,   lo_i_w,
+                                              ho_i_c,   ho_i_w)])
+setorder(network_metrics, year, id_seller)
 
 # Store file containing network metrics
 save(network_metrics, file = paste0(pathEst,'output/network_metrics.Rdata'))

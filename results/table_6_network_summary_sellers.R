@@ -30,7 +30,6 @@ match <- merge(markups[,.(id,year,mu=1)], sum_stats_sellers, by.x=c("id","year")
 
 # Create category variable (either matched, or network only, or network only but missing sector info)
 match[, category := ifelse(!is.na(mu), "intersection", "network")]
-match[is.na(seller_sec), category := "missing_sec"]
 table(match$category)
 
 # Summarize statistics by category (pool all years, not really much difference over time)
@@ -48,36 +47,38 @@ sink(paste0(pathTab,sysdate,"_table_6_network_summary_sellers.tex"))
 cat("\\begin{table}[!htbp]\\centering \n")
 cat("\\caption{\\label{tab:NetworkSellers} Summary Statistics of Sellers in Network} \n")
 cat("\\begin{adjustbox}{width=\\columnwidth,center} \n")
-cat("\\begin{tabular}{lcccc}")
+cat("\\begin{tabular}{lcc}")
 cat("\\toprule \n")
-cat("\\multirow{3}{*}{Summary statistic} & \\multirow{3}{*}{Intersection set} & & \\multicolumn{2}{c}{Network-only set} \\\\ \n")
-cat("\\addlinespace \\cline{4-5} \\addlinespace \n")
-cat(" & & & Sector known & Sector unknown \\\\ \n")
+cat("Summary statistic & Intersection set & Network-only set \\\\ \n")
 cat("\\addlinespace \\hline \\addlinespace \n")
 cat("Dummy: Files purchase annexes & ", 
-    fp(stats[category=="intersection"]$also_buyer,3), " & & ", 
-    fp(stats[category=="network"]$also_buyer,3),      " & ", 
-    fp(stats[category=="missing_sec"]$also_buyer,3),  "\\\\  \n")
+    fp(stats[category=="intersection"]$also_buyer,3), " & ", 
+    fp(stats[category=="network"]$also_buyer,3),      "\\\\  \n")
 cat("Number of buyers supplied & ", 
-    fp(stats[category=="intersection"]$unique_buyers,1), " & & ", 
-    fp(stats[category=="network"]$unique_buyers,1),      " & ", 
-    fp(stats[category=="missing_sec"]$unique_buyers,1),  "\\\\  \n")
+    fp(stats[category=="intersection"]$unique_buyers,1), " & ", 
+    fp(stats[category=="network"]$unique_buyers,1),      "\\\\  \n")
 cat("Number of industries supplied & ", 
-    fp(stats[category=="intersection"]$unique_industries,1), " & & ", 
-    fp(stats[category=="network"]$unique_industries,1),      " & ", 
-    fp(stats[category=="missing_sec"]$unique_industries,1),  "\\\\  \n")
+    fp(stats[category=="intersection"]$unique_industries,1), " & ", 
+    fp(stats[category=="network"]$unique_industries,1),      "\\\\  \n")
 cat("Transaction frequency & ", 
-    fp(stats[category=="intersection"]$trans_freq,1), " & & ", 
-    fp(stats[category=="network"]$trans_freq,1),      " & ", 
-    fp(stats[category=="missing_sec"]$trans_freq,1),  "\\\\  \n")
+    fp(stats[category=="intersection"]$trans_freq,1), " & ", 
+    fp(stats[category=="network"]$trans_freq,1),      "\\\\  \n")
 cat("Transaction value & ", 
-    fp(stats[category=="intersection"]$trans_val,0), " & & ", 
-    fp(stats[category=="network"]$trans_val,0),      " & ", 
-    fp(stats[category=="missing_sec"]$trans_val,0),  "\\\\  \n")
+    fp(stats[category=="intersection"]$trans_val,0), " & ", 
+    fp(stats[category=="network"]$trans_val,0),      "\\\\  \n")
 cat("Average amount per transaction & ", 
-    fp(stats[category=="intersection"]$avg_trans_amount,0), " & & ", 
-    fp(stats[category=="network"]$avg_trans_amount,0),      " & ", 
-    fp(stats[category=="missing_sec"]$avg_trans_amount,0),  "\\\\  \n")
+    fp(stats[category=="intersection"]$avg_trans_amount,0), " & ", 
+    fp(stats[category=="network"]$avg_trans_amount,0),      "\\\\  \n")
+cat("\\midrule \n")
+cat("Number of unique sellers & ", 
+    fp(uniqueN(match[category=="intersection"]$id),0), " & ", 
+    fp(uniqueN(match[category=="network"]$id),0),      "\\\\  \n")
+cat("Number of total single transactions & ", 
+    fp(sum(match[category=="intersection"]$trans_freq),0), " & ", 
+    fp(sum(match[category=="network"]$trans_freq),0),      "\\\\  \n")
+cat("Sum of total transactions value & ", 
+    fp(sum(match[category=="intersection"]$trans_val),0), " & ", 
+    fp(sum(match[category=="network"]$trans_val),0),      "\\\\  \n")
 cat("\\bottomrule \n")
 cat("\\end{tabular} \n")
 cat("\\end{adjustbox} \n")
