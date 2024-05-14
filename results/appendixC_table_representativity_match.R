@@ -1,5 +1,5 @@
 #///////////////////////////////////////////////////////////////////////////////
-# File name:		table_2_representativity_match.R
+# File name:		appendixC_table_representativity_match.R
 # Author:			Miguel Vázquez Vázquez
 # Creation date:    19 March 2023
 # Description:      This file checks whether markups correlate with different 
@@ -48,7 +48,7 @@ df_represent2_all <- as.data.table(table(match$year)/table(network_metrics$year)
 setnames(df_represent2_all, c("V1","N"), c("year","val"))
 
 # Produce table
-sink(paste0(pathTab,sysdate,"_table_2_representativity_match.tex"))
+sink(paste0(pathTab,sysdate,"_appendixC_table_representativity_match.tex"))
 cat("\\begin{table}[!htbp]\\centering \n")
 cat("\\caption{\\label{tab:RepresentativityMatch} Representativity of Matched Observations} \n")
 cat("\\begin{adjustbox}{width=\\columnwidth,center} \n")

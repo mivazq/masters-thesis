@@ -1,5 +1,5 @@
 #///////////////////////////////////////////////////////////////////////////////
-# File name:		table_6_network_summary_sellers.R
+# File name:		appendixC_table_network_summary_sellers.R
 # Author:			Miguel Vázquez Vázquez
 # Creation date:    19 March 2023
 # Description:      This file checks whether markups correlate with different 
@@ -43,7 +43,7 @@ stats <- dcast(match,
                value.var=c("unique_buyers","unique_industries","trans_freq","trans_val","avg_trans_amount","also_buyer"))
 
 # Produce table
-sink(paste0(pathTab,sysdate,"_table_6_network_summary_sellers.tex"))
+sink(paste0(pathTab,sysdate,"_appendixC_table_network_summary_sellers.tex"))
 cat("\\begin{table}[!htbp]\\centering \n")
 cat("\\caption{\\label{tab:NetworkSellers} Summary Statistics of Sellers in Network} \n")
 cat("\\begin{adjustbox}{width=\\columnwidth,center} \n")

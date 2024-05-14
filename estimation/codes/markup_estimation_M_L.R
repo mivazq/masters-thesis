@@ -363,3 +363,9 @@ markups_ML <- subset(dt_est, select=c("id", "year", "ind", "m", "l", colnames(dt
 markups_ML[, c("M", "L") := list(exp(m), exp(l))]
 markups_ML[, c("m", "l") := NULL]
 save(markups_ML, file=paste0(pathEst, "output/firm_markups_ML.Rdata"))
+
+# Average output elasticity
+paste0("Average firm-level output elasticity for CD prod. and using input M: ", fp(mean(dt_est[!is.na(y)]$beta_m_dlw_cd),3))
+paste0("Average firm-level output elasticity for TL prod. and using input M: ", fp(mean(dt_est[!is.na(y)]$beta_m_dlw_tl),3))
+paste0("Average firm-level output elasticity for CD prod. and using input L: ", fp(mean(dt_est[!is.na(y)]$beta_l_dlw_cd),3))
+paste0("Average firm-level output elasticity for TL prod. and using input L: ", fp(mean(dt_est[!is.na(y)]$beta_l_dlw_tl),3))

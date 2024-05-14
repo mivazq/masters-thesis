@@ -1,11 +1,5 @@
 # TO DO FROM ELIE:
 #     
-#     
-#     - Aggregate at e.g. deciles of markups per sectors, create network, check measures
-# 
-#     - For magnitude: check what it takes to from from 25th to 75 percentile of X, 
-#     explain that effect in Y terms. E.g. moving from 25th to 75th percentile of WSI
-#     implies a 8pp increase in markups
 #
 #     - Check if firms not in PA export more as share of revenue?
 #     --> Maybe they are pure exporters and could be giving up production domestically (so WSI goes down)
@@ -38,6 +32,11 @@
 
 
 # DONE
+#
+#     
+#     - For magnitude: check what it takes to from from 25th to 75 percentile of X, 
+#     explain that effect in Y terms. E.g. moving from 25th to 75th percentile of WSI
+#     implies a 8pp increase in markups
 # 
 #     - Add information on "Movements in Within-Industry Markup Ordering" figure: 
 #         share that stays in same decile, share that goes up by one, share that 
@@ -64,3 +63,9 @@
 #     
 #     - Only main stuff in main text, rest in appendix. No tables with too much information,
 #     make it easily readable.
+
+
+# NOT GOING TO DO
+#
+#     - Aggregate at e.g. deciles of markups per sectors, create network, check measures
+# 

@@ -1,5 +1,5 @@
 #///////////////////////////////////////////////////////////////////////////////
-# File name:		table_3_summary_markups.R
+# File name:		table_1_summary_markups.R
 # Author:			Miguel Vázquez Vázquez
 # Creation date:    31 March 2024
 # Description:      This file produces table with summary statistics on markups
@@ -24,7 +24,7 @@ markups[, weight := ifelse(input=="m", M, ifelse(input=="l", L, V))]
 markups[, c("M","L","V") := NULL]
 
 # Table by industry group, for main
-sink(paste0(pathTab,sysdate,"_table_3_estimates_markups_main.tex"))
+sink(paste0(pathTab,sysdate,"_table_1_estimates_markups_main.tex"))
 cat("\\begin{table}[!htbp]\\centering \n")
 cat("\\caption{\\label{tab:EstimatedMarkups} Estimated Markups} \n")
 # cat("\\begin{adjustbox}{width=\\columnwidth,center} \n")
@@ -73,7 +73,7 @@ nrobs_HQ  <- nrow(markups_HQ[!is.na(mu)])
 nrobs_tot <- nrow(markups[!is.na(mu)])
 
 # Table by industry group, for appendix
-sink(paste0(pathTab,sysdate,"_table_3_estimates_markups_appendix.tex"))
+sink(paste0(pathTab,sysdate,"_table_1_estimates_markups_appendix.tex"))
 cat("\\begin{table}[!htbp]\\centering \n")
 cat("\\caption{\\label{tab:EstimatedMarkupsIndustryGroup} Estimated Markups by Industry Group} \n")
 cat("\\begin{adjustbox}{width=\\columnwidth,center} \n")

@@ -95,7 +95,7 @@ elasticities_ML[, . := NULL]
 #///////////////////////////////////////////////////////////////////////////////
 
 # Main table - Cobb Douglas - V
-sink(paste0(pathTab,sysdate,"_table_4_estimates_parameters_V_all.tex"))
+sink(paste0(pathTab,sysdate,"_table_2_estimates_parameters_main.tex"))
 cat("\\begin{table}[!htbp]\\centering \n")
 cat("\\caption{\\label{tab:EstimatedParametersV} Output Elasticities by Estimation Method} \n")
 cat("\\begin{tabular}{lccc}")
@@ -114,7 +114,7 @@ sink()
 
 
 # Appendix table - Cobb Douglas - V
-sink(paste0(pathTab,sysdate,"_table_4_estimates_parameters.tex"))
+sink(paste0(pathTab,sysdate,"_table_2_estimates_parameters_appendix.tex"))
 cat("\\begin{table}[!htbp]\\centering \n")
 cat("\\caption{\\label{tab:EstimatedParametersIndustryGroup} Output Elasticities by Industry Group and Estimation Method} \n")
 cat("\\begin{adjustbox}{width=\\columnwidth,center} \n")

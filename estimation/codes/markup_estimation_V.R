@@ -327,7 +327,13 @@ rm(table_dist_mu_ols, table_dist_mu_dlw)
 #----                           7 - EXPORT FIRM MARKUPS                     ----
 #///////////////////////////////////////////////////////////////////////////////
 
-markups_V <- subset(dt_est, select=c("id", "year", "ind", "v", colnames(dt_est)[grep("mu_", colnames(dt_est))], "alpha_v"))
+markups_V <- subset(dt_est, select=c("id", "year", "ind", "v", "k", colnames(dt_est)[grep("mu_", colnames(dt_est))], "alpha_v"))
 markups_V[, V := exp(v)]
+markups_V[, K := exp(k)]
 markups_V[, v := NULL]
+markups_V[, k := NULL]
 save(markups_V, file=paste0(pathEst, "output/firm_markups_V.Rdata"))
+
+# Average output elasticity
+paste0("Average firm-level output elasticity for CD prod. and using input V: ", fp(mean(dt_est[!is.na(y)]$beta_v_dlw_cd),3))
+paste0("Average firm-level output elasticity for TL prod. and using input V: ", fp(mean(dt_est[!is.na(y)]$beta_v_dlw_tl),3))

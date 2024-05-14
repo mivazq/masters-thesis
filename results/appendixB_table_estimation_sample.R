@@ -1,5 +1,5 @@
 #///////////////////////////////////////////////////////////////////////////////
-# File name:		table_1_sample.R
+# File name:		appendixB_table_estimation_sample.R
 # Author:			Miguel Vázquez Vázquez
 # Creation date:    31 March 2024
 # Description:      In this file we produce Table 1 (about sample)
@@ -23,7 +23,7 @@ emph <- function(value) {
     return(paste0("\\textcolor{red}{\\emph{", value,"}}"))
 }
 
-filename = paste0(pathTab,sysdate,"_table_1_estimation_sample.tex")
+filename = paste0(pathTab,sysdate,"_appendixB_table_estimation_sample.tex")
 if (file.exists(filename)) { file.remove(filename) }
 sink(filename)
 # cat("\\documentclass{article} \n")

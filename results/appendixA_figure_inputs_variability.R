@@ -1,5 +1,5 @@
 #///////////////////////////////////////////////////////////////////////////////
-# File name:		show_why_use_labour.R
+# File name:		appendixA_figure_inputs_variability.R
 # Author:			Miguel Vázquez Vázquez
 # Creation date:    16 April 2024
 # Description:      This file estimates markups for all firms, year to year.
@@ -88,7 +88,7 @@ ggplot(variability, aes(x = value, fill = variable)) +
           legend.title = element_blank(), 
           legend.box.background = element_rect(colour = "black"), axis.text = element_text(size = 25, color = "black"), 
           axis.title.y = element_text(angle = 0, vjust = 0.5), axis.title = element_text(size = 25, color = "black"))
-ggsave(paste0(pathFig,sysdate,"_inputs_variability.pdf"), width = 15, height = 10, device=cairo_pdf)
+ggsave(paste0(pathFig,sysdate,"_appendixA_figure_inputs_variability.pdf"), width = 15, height = 10, device=cairo_pdf)
 
 # Check correlations
 correlations <- data.table(input=c("M", "L", "V", "K"))
