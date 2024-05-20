@@ -1,10 +1,18 @@
 # TO DO FROM ELIE:
 #     
+#    - GRAMMAR CHECK WITH GRAMMARLY
 #
-#     - Check if firms not in PA export more as share of revenue?
-#     --> Maybe they are pure exporters and could be giving up production domestically (so WSI goes down)
-#     but markup might be high because they are exporters
+#    - REPRODUCE ALL FIGURES AND TABLES
 # 
+#    - FIX APPPENDIXES
+#
+#    - CREATE SEPARATE REFERENCES LIST FOR APPENDIX ONLY
+#
+#    - 
+#
+#    - FIX COMPETITION INTESNTITY, SOMETHING CLEARLY WRONG WITH IT. ALSO THINK ABOUT 
+#    WHEN IT MAKES SENSE TO HAVE UNCONDITIONAL VARIABLES AT ALL
+#
 #     - Include absolute numbers when comparing sets, mention how important 
 #         intersection set is in whole economy
 #
@@ -33,6 +41,10 @@
 
 # DONE
 #
+#
+#     - Check if firms not in PA export more as share of revenue?
+#     --> Maybe they are pure exporters and could be giving up production domestically (so WSI goes down)
+#     but markup might be high because they are exporters --> Talk about in conclusion
 #     
 #     - For magnitude: check what it takes to from from 25th to 75 percentile of X, 
 #     explain that effect in Y terms. E.g. moving from 25th to 75th percentile of WSI

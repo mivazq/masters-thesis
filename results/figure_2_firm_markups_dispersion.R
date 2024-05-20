@@ -1,5 +1,5 @@
 #///////////////////////////////////////////////////////////////////////////////
-# File name:		figure_1_markups_dispersion.R
+# File name:		figure_2_markups_dispersion.R
 # Author:			Miguel Vázquez Vázquez
 # Creation date:    28 April 2024
 # Description:      This file plots markup dispersion over time
@@ -32,13 +32,6 @@ markups[, est := NULL]
 
 # Generate variable for industry group
 markups[, ind_group := ifelse(substr(ind,1,1) %in% c("A","B","C","D","E","F"), "AF", ifelse(substr(ind,1,1)=="G", "G", "HQ"))]
-
-# Fix markups of industries H55 AND O91 (it doesn't actually matter for this figures, but just for consistency)
-medgroup = median(markups[ind_group=="HQ" & ind %nin% c("H55","O91") & input=="v" & pf=="cd"]$mu) # median for industry group H55-Q99 (excluding these two industries)
-fix_H55 = medgroup - median(markups[ind=="H55" & input=="v" & pf=="cd"]$mu) # median deviation from group median
-fix_O91 = medgroup - median(markups[ind=="O91" & input=="v" & pf=="cd"]$mu) # median deviation from group median
-markups[ind=="H55" & input=="v" & pf=="cd", mu := mu + fix_H55] # fix H55
-markups[ind=="O91" & input=="v" & pf=="cd", mu := mu + fix_O91] # fix O91
 
 # Collapse at industry-year level, per specification
 std_mu <- dcast(markups,
@@ -84,22 +77,19 @@ for (i_input in c("v", "m")) {
               axis.text = element_text(size = 25, color = "black"), 
               axis.title.y = element_text(angle = 0, vjust = 0.5, size = 25, color = "black"), 
               axis.title.x = element_blank())
-    ggsave(paste0(pathFig,sysdate,"_std_markup_",toupper(i_input),"_appendix.pdf"), width = 15, height = 10, device=cairo_pdf)
+    ggsave(paste0(pathFig,sysdate,"_figure_2_std_markup_",toupper(i_input),"_appendix.pdf"), width = 15, height = 10, device=cairo_pdf)
 }
 
 # Plot evolution by production function and input (for main)
-ggplot(std_mu[input=="v" & pf=="Cobb-Douglas Production"], aes(x = year, y = value, color = ind_group)) +
+ggplot(std_mu[input=="v" & pf=="Translog Production"], aes(x = year, y = value, color = ind_group)) +
     geom_line(linewidth=1.5) + geom_point(size=3) +
     scale_color_discrete(labels = c(lgndlab1, lgndlab2, lgndlab3, lgndlab4), type = c("#f8766d","#00ba38","#619cff","#a3a500")) +
     scale_y_continuous(labels = function(x) fp(x, dig=2), limits = c(0,NA)) +
-    xlab("Year") + ylab(expression(italic("\u03C3"["\u03BC"["it"]^"V"]))) +
+    xlab("Year") + ylab(expression(italic("\u03C3"["\u03BC"["it"]]))) +
     theme_bw() + 
-    theme(legend.position = "bottom", text = element_text(family = "Palatino"), 
-          legend.title = element_blank(), 
-          strip.background=element_blank(), strip.text=element_text(size=25, color = "black"),
+    theme(legend.position = "bottom", text = element_text(family = "Palatino"), legend.title = element_blank(), 
           legend.text = element_text(size = 25, margin = margin(r = 20)), legend.key.size = unit(20, "mm"), 
-          axis.text = element_text(size = 25, color = "black"), 
-          axis.title.y = element_text(angle = 0, vjust = 0.5, size = 25, color = "black"), 
-          axis.title.x = element_blank())
-ggsave(paste0(pathFig,sysdate,"_std_markup_v_main.pdf"), width = 15, height = 10, device=cairo_pdf)
+          axis.text = element_text(size = 25, color = "black"), axis.title.y = element_text(angle = 0, vjust = 0.5), 
+          axis.title = element_text(size = 25, color = "black"), axis.title.x = element_blank())
+ggsave(paste0(pathFig,sysdate,"_figure_2_std_markup_v_main.pdf"), width = 15, height = 10, device=cairo_pdf)
 

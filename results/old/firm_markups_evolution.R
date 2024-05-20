@@ -1,5 +1,5 @@
 #///////////////////////////////////////////////////////////////////////////////
-# File name:		figure_1_firm_markups_evolution.R
+# File name:		firm_markups_evolution.R
 # Author:			Miguel Vázquez Vázquez
 # Creation date:    03 April 2024
 # Description:      
@@ -34,13 +34,6 @@ markups[, c("M","L","V") := NULL]
 # Drop OLS and L markups, not interested
 markups <- markups[est=="dlw" & input!="l"]
 markups[, est := NULL]
-
-# Fix markups of industries H55 AND O91
-medgroup = median(markups[ind_group=="HQ" & ind %nin% c("H55","O91") & input=="v" & pf=="cd"]$mu) # median for industry group H55-Q99 (excluding these two industries)
-fix_H55 = medgroup - median(markups[ind=="H55" & input=="v" & pf=="cd"]$mu) # median deviation from group median
-fix_O91 = medgroup - median(markups[ind=="O91" & input=="v" & pf=="cd"]$mu) # median deviation from group median
-markups[ind=="H55" & input=="v" & pf=="cd", mu := mu + fix_H55] # fix H55
-markups[ind=="O91" & input=="v" & pf=="cd", mu := mu + fix_O91] # fix O91
 
 # Compute change in markups
 setorder(markups, "input", "pf", "id", "year")
@@ -112,3 +105,4 @@ compact_stats <- dcast(data=compact_stats,
                        formula=.~ .,
                        fun = sum,
                        value.var=c("dw_more_deciles", "dw_one_decile", "same", "up_one_decile", "up_more_deciles"))
+

@@ -369,3 +369,15 @@ paste0("Average firm-level output elasticity for CD prod. and using input M: ", 
 paste0("Average firm-level output elasticity for TL prod. and using input M: ", fp(mean(dt_est[!is.na(y)]$beta_m_dlw_tl),3))
 paste0("Average firm-level output elasticity for CD prod. and using input L: ", fp(mean(dt_est[!is.na(y)]$beta_l_dlw_cd),3))
 paste0("Average firm-level output elasticity for TL prod. and using input L: ", fp(mean(dt_est[!is.na(y)]$beta_l_dlw_tl),3))
+
+# Save data about elasticities (set to missing for inactive)
+elast_ML <- subset(dt_est, select=c("id", "year", "ind", "m", "alpha_m", "l", "alpha_l", 
+                                   "beta_m_ols_cd", "beta_m_dlw_cd", "beta_m_ols_tl", "beta_m_dlw_tl", 
+                                   "beta_l_ols_cd", "beta_l_dlw_cd", "beta_l_ols_tl", "beta_l_dlw_tl"))
+elast_ML[is.na(m), c("beta_m_ols_cd", "beta_m_dlw_cd", "beta_l_ols_cd", "beta_l_dlw_cd") := NA] # Due to not using input intensity elasticities were defined for all obs (even inactive)
+save(elast_ML, file=paste0(pathEst, "output/firm_elasticities_ML.Rdata"))
+
+
+
+
+

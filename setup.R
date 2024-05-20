@@ -14,6 +14,7 @@ packages_needed <- c('writexl',                                                 
                      'data.table',                                              # Improved syntax for data manipulation
                      'gdata',   											    # Various R programming tools for data manipulation
                      'ggplot2',                                                 # Beautiful plotting
+                     'ggridges',                                                # For multiple offset density plots
                      'tidyr',                                                   # Other tools for data manipulation
                      'scales',                                                  # To handle very big numbers
                      'bit64',                                                   # To handle very big numbers

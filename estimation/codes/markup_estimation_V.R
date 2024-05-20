@@ -337,3 +337,10 @@ save(markups_V, file=paste0(pathEst, "output/firm_markups_V.Rdata"))
 # Average output elasticity
 paste0("Average firm-level output elasticity for CD prod. and using input V: ", fp(mean(dt_est[!is.na(y)]$beta_v_dlw_cd),3))
 paste0("Average firm-level output elasticity for TL prod. and using input V: ", fp(mean(dt_est[!is.na(y)]$beta_v_dlw_tl),3))
+
+# Save data about elasticities (set to missing for inactive)
+elast_V <- subset(dt_est, select=c("id", "year", "ind", "v", "alpha_v", "beta_v_ols_cd", "beta_v_dlw_cd", "beta_v_ols_tl", "beta_v_dlw_tl"))
+elast_V[is.na(v), c("beta_v_ols_cd", "beta_v_dlw_cd") := NA] # Due to not using input intensity elasticities were defined for all obs (even inactive)
+save(elast_V, file=paste0(pathEst, "output/firm_elasticities_V.Rdata"))
+
+

@@ -1,5 +1,5 @@
 #///////////////////////////////////////////////////////////////////////////////
-# File name:		appendixC_table_network_summary_sellers.R
+# File name:		appendixE_table_network_summary_sellers.R
 # Author:			Miguel Vázquez Vázquez
 # Creation date:    19 March 2023
 # Description:      This file checks whether markups correlate with different 
@@ -42,47 +42,82 @@ stats <- dcast(match,
                fun = mean,
                value.var=c("unique_buyers","unique_industries","trans_freq","trans_val","avg_trans_amount","also_buyer"))
 
+# Summary for all network obs together
+stats_all <- dcast(match,
+               . ~.,
+               # fun = custom_fun,
+               fun = mean,
+               value.var=c("unique_buyers","unique_industries","trans_freq","trans_val","avg_trans_amount","also_buyer"))
+setnames(stats_all, ".", "category")
+stats_all[, category := "all"]
+
+# Bind together
+stats <- rbind(stats,stats_all)
+
+
+
 # Produce table
-sink(paste0(pathTab,sysdate,"_appendixC_table_network_summary_sellers.tex"))
+sink(paste0(pathTab,sysdate,"_appendixE_table_network_summary_sellers.tex"))
 cat("\\begin{table}[!htbp]\\centering \n")
 cat("\\caption{\\label{tab:NetworkSellers} Summary Statistics of Sellers in Network} \n")
 cat("\\begin{adjustbox}{width=\\columnwidth,center} \n")
-cat("\\begin{tabular}{lcc}")
+cat("\\begin{tabular}{lccc}")
 cat("\\toprule \n")
-cat("Summary statistic & Intersection set & Network-only set \\\\ \n")
+cat("Summary statistic & Matched observations & Unmatched observations & All network observations \\\\ \n")
 cat("\\addlinespace \\hline \\addlinespace \n")
 cat("Dummy: Files purchase annexes & ", 
     fp(stats[category=="intersection"]$also_buyer,3), " & ", 
-    fp(stats[category=="network"]$also_buyer,3),      "\\\\  \n")
+    fp(stats[category=="network"]$also_buyer,3), " & ", 
+    fp(stats[category=="all"]$also_buyer,3),      "\\\\  \n")
 cat("Number of buyers supplied & ", 
     fp(stats[category=="intersection"]$unique_buyers,1), " & ", 
-    fp(stats[category=="network"]$unique_buyers,1),      "\\\\  \n")
+    fp(stats[category=="network"]$unique_buyers,1), " & ", 
+    fp(stats[category=="all"]$unique_buyers,1),   "\\\\  \n")
 cat("Number of industries supplied & ", 
     fp(stats[category=="intersection"]$unique_industries,1), " & ", 
-    fp(stats[category=="network"]$unique_industries,1),      "\\\\  \n")
+    fp(stats[category=="network"]$unique_industries,1), " & ", 
+    fp(stats[category=="all"]$unique_industries,1),"\\\\  \n")
 cat("Transaction frequency & ", 
     fp(stats[category=="intersection"]$trans_freq,1), " & ", 
-    fp(stats[category=="network"]$trans_freq,1),      "\\\\  \n")
+    fp(stats[category=="network"]$trans_freq,1), " & ", 
+    fp(stats[category=="all"]$trans_freq,1),      "\\\\  \n")
 cat("Transaction value & ", 
     fp(stats[category=="intersection"]$trans_val,0), " & ", 
-    fp(stats[category=="network"]$trans_val,0),      "\\\\  \n")
+    fp(stats[category=="network"]$trans_val,0), " & ", 
+    fp(stats[category=="all"]$trans_val,0),      "\\\\  \n")
 cat("Average amount per transaction & ", 
     fp(stats[category=="intersection"]$avg_trans_amount,0), " & ", 
-    fp(stats[category=="network"]$avg_trans_amount,0),      "\\\\  \n")
+    fp(stats[category=="network"]$avg_trans_amount,0), " & ", 
+    fp(stats[category=="all"]$avg_trans_amount,0),"\\\\  \n")
 cat("\\midrule \n")
 cat("Number of unique sellers & ", 
     fp(uniqueN(match[category=="intersection"]$id),0), " & ", 
-    fp(uniqueN(match[category=="network"]$id),0),      "\\\\  \n")
+    fp(uniqueN(match[category=="network"]$id),0), " & ", 
+    fp(uniqueN(match$id),0),      "\\\\  \n")
+cat("\\quad Share of all & ", 
+    fpp(uniqueN(match[category=="intersection"]$id)/uniqueN(match$id),2), " & ", 
+    fpp(uniqueN(match[category=="network"]$id)/uniqueN(match$id),2), " & ", 
+    fpp(uniqueN(match$id)/uniqueN(match$id),2), "\\\\  \n")
 cat("Number of total single transactions & ", 
     fp(sum(match[category=="intersection"]$trans_freq),0), " & ", 
-    fp(sum(match[category=="network"]$trans_freq),0),      "\\\\  \n")
+    fp(sum(match[category=="network"]$trans_freq),0), " & ", 
+    fp(sum(match$trans_freq),0),      "\\\\  \n")
+cat("\\quad Share of all & ", 
+    fpp(sum(match[category=="intersection"]$trans_freq)/sum(match$trans_freq),2), " & ", 
+    fpp(sum(match[category=="network"]$trans_freq)/sum(match$trans_freq),2), " & ", 
+    fpp(sum(match$trans_freq)/sum(match$trans_freq),2), "\\\\  \n")
 cat("Sum of total transactions value & ", 
     fp(sum(match[category=="intersection"]$trans_val),0), " & ", 
-    fp(sum(match[category=="network"]$trans_val),0),      "\\\\  \n")
+    fp(sum(match[category=="network"]$trans_val),0), " & ", 
+    fp(sum(match$trans_val),0),      "\\\\  \n")
+cat("\\quad Share of all & ", 
+    fpp(sum(match[category=="intersection"]$trans_val)/sum(match$trans_val),2), " & ", 
+    fpp(sum(match[category=="network"]$trans_val)/sum(match$trans_val),2), " & ", 
+    fpp(sum(match$trans_val)/sum(match$trans_val),2), "\\\\  \n")
 cat("\\bottomrule \n")
 cat("\\end{tabular} \n")
 cat("\\end{adjustbox} \n")
-cat("\\justify \\footnotesize \\emph{Notes:} The reported values are averages across all sellers and all years for each category. The decision of pooling all years together stems from the minimal variance of these summary statistics over time. \n")
+cat("\\justify \\footnotesize \\emph{Notes:} The reported values are averages across all sellers and all years for each sample The decision of pooling all years together stems from the minimal variance of these summary statistics over time. For the construction of this table I used the nominal values, although the network metrics are computed on deflated values.\n")
 cat("\\end{table} \n")
 sink()
 
